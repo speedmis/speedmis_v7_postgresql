@@ -1,0 +1,810 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:x="urn:schemas-microsoft-com:office:excel"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=utf-8">
+<meta name=ProgId content=Excel.Sheet>
+<meta name=Generator content="Microsoft Excel 15">
+<link rel=File-List href="SpeedMIS_Daemon.files/filelist.xml">
+<style id="SpeedMIS_Daemon_31877_Styles">
+<!--table
+	{mso-displayed-decimal-separator:".";
+	mso-displayed-thousand-separator:",";}
+.font531877
+	{color:windowtext;
+	font-size:8.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"맑은 고딕", monospace;
+	mso-font-charset:129;}
+.font631877
+	{color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;}
+.font731877
+	{color:black;
+	font-size:16.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;}
+.font831877
+	{color:black;
+	font-size:12.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;}
+.xl6931877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:12.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"맑은 고딕", monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl7031877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl7131877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:"@";
+	text-align:center;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl7231877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl7331877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:12.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl7431877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:9.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl7531877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;
+	mso-text-control:shrinktofit;}
+.xl7631877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:left;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;
+	mso-text-control:shrinktofit;}
+.xl7731877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:right;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;
+	mso-text-control:shrinktofit;}
+.xl7831877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	border:.5pt solid windowtext;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl7931877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;
+	mso-text-control:shrinktofit;}
+.xl8031877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:left;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;
+	mso-text-control:shrinktofit;}
+.xl8131877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:right;
+	vertical-align:middle;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl8231877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:8.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	border:.5pt solid windowtext;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl8331877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	border:.5pt solid windowtext;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;
+	mso-text-control:shrinktofit;}
+.xl8431877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:16.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:center;
+	vertical-align:middle;
+	border-top:none;
+	border-right:none;
+	border-bottom:.5pt solid windowtext;
+	border-left:none;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl8531877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:.5pt solid windowtext;
+	border-right:none;
+	border-bottom:none;
+	border-left:.5pt solid windowtext;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl8631877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:.5pt solid windowtext;
+	border-right:none;
+	border-bottom:none;
+	border-left:none;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl8731877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:.5pt solid windowtext;
+	border-right:.5pt solid windowtext;
+	border-bottom:none;
+	border-left:none;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl8831877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:none;
+	border-right:none;
+	border-bottom:none;
+	border-left:.5pt solid windowtext;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl8931877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl9031877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:none;
+	border-right:.5pt solid windowtext;
+	border-bottom:none;
+	border-left:none;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl9131877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:none;
+	border-right:none;
+	border-bottom:.5pt solid windowtext;
+	border-left:.5pt solid windowtext;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl9231877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:none;
+	border-right:none;
+	border-bottom:.5pt solid windowtext;
+	border-left:none;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl9331877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:top;
+	border-top:none;
+	border-right:.5pt solid windowtext;
+	border-bottom:.5pt solid windowtext;
+	border-left:none;
+	background:#DCE6F1;
+	mso-pattern:black none;
+	white-space:nowrap;}
+.xl9431877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:10.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:"@";
+	text-align:right;
+	vertical-align:middle;
+	border-top:none;
+	border-right:none;
+	border-bottom:.5pt solid windowtext;
+	border-left:none;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl9531877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:12.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:middle;
+	border:.5pt solid windowtext;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+.xl9631877
+	{padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	color:black;
+	font-size:8.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:돋움체, monospace;
+	mso-font-charset:129;
+	mso-number-format:General;
+	text-align:general;
+	vertical-align:middle;
+	border:.5pt solid windowtext;
+	mso-background-source:auto;
+	mso-pattern:auto;
+	white-space:nowrap;}
+ruby
+	{ruby-align:left;}
+rt
+	{color:windowtext;
+	font-size:8.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"맑은 고딕", monospace;
+	mso-font-charset:129;
+	mso-char-type:none;}
+-->
+</style>
+</head>
+
+<body>
+<!--[if !excel]><![endif]-->
+<!--다음 내용은 Microsoft Excel의 웹 페이지로 게시 마법사를 사용하여 작성되었습니다.-->
+<!--같은 내용의 항목이 다시 게시되면 DIV 태그 사이에 있는 내용이 변경됩니다.-->
+<!----------------------------->
+<!--Excel의 웹 페이지 마법사로 게시해서 나온 결과의 시작 -->
+<!----------------------------->
+
+<div id="SpeedMIS_Daemon_31877" align=center x:publishsource="Excel">
+
+<table border=0 cellpadding=0 cellspacing=0 width=867 class=xl6553531877
+ style='border-collapse:collapse;table-layout:fixed;width:651pt'>
+ <col class=xl6553531877 width=116 style='mso-width-source:userset;mso-width-alt:
+ 3712;width:87pt'>
+ <col class=xl6553531877 width=79 style='mso-width-source:userset;mso-width-alt:
+ 2528;width:59pt'>
+ <col class=xl6553531877 width=102 style='mso-width-source:userset;mso-width-alt:
+ 3264;width:77pt'>
+ <col class=xl6553531877 width=97 span=2 style='mso-width-source:userset;
+ mso-width-alt:3104;width:73pt'>
+ <col class=xl6553531877 width=201 style='mso-width-source:userset;mso-width-alt:
+ 6432;width:151pt'>
+ <col class=xl6553531877 width=59 style='mso-width-source:userset;mso-width-alt:
+ 1888;width:44pt'>
+ <col class=xl6553531877 width=116 style='mso-width-source:userset;mso-width-alt:
+ 3712;width:87pt'>
+ <tr height=41 valign=middle style='mso-height-source:userset;height:30.75pt'>
+  <td colspan=3 height=41 class=xl8431877 align=center width=297
+  style='height:30.75pt;width:223pt'><a name="RANGE!A1:H18"><font
+  class="font731877" face="돋움체" size="5"><b>{{메뉴명}}</b></font></a></td>
+  <td class=xl8131877 align=right width=97 style='width:73pt'><font face="돋움체">등록번호
+  :</font></td>
+  <td class=xl7031877 align=center width=97 style='width:73pt'><font face="돋움체">{idx}</font></td>
+  <td class=xl7131877 align=center width=201 style='width:151pt'><a
+  name="RANGE!F1"><font face="돋움체">수정일:</font></a></td>
+  <td colspan=2 class=xl9431877 align=right width=175 style='width:131pt'><a
+  name="RANGE!G1"><font face="돋움체">{수정일}</font></a></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td colspan=2 height=27 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='height:20.25pt'><font face="돋움체">계정코드</font></td>
+  <td colspan=2 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='border-left:none'><font face="돋움체">계정명</font></td>
+  <td colspan=2 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='border-left:none'><font face="돋움체">Flag1</font></td>
+  <td colspan=2 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='border-left:none'><font face="돋움체">작성자</font></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td colspan=2 height=27 class=xl8331877 align=center style='height:20.25pt'><a
+  name="RANGE!A3"><font face="돋움체">{계정코드}</font></a></td>
+  <td colspan=2 class=xl8331877 align=center style='border-left:none'><a
+  name="RANGE!C3"><font face="돋움체">{계정명}</font></a></td>
+  <td colspan=2 class=xl8331877 align=center style='border-left:none'><a
+  name="RANGE!E3"><font face="돋움체">{Flag1}</font></a></td>
+  <td colspan=2 class=xl8331877 align=center style='border-left:none'><a
+  name="RANGE!G3"><font face="돋움체">{작성자}</font></a></td>
+ </tr>
+ <tr class=xl6931877 height=6 valign=middle style='mso-height-source:userset;
+  height:4.5pt'>
+  <td height=6 class=xl7231877 style='height:4.5pt'></td>
+  <td class=xl7231877></td>
+  <td class=xl7231877></td>
+  <td class=xl7231877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td colspan=8 rowspan=5 height=135 class=xl8531877 bgcolor="#DCE6F1"
+  valign=top style='border-right:.5pt solid black;border-bottom:.5pt solid black;
+  height:101.25pt'><font face="돋움체">{내용양식}</font></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+ </tr>
+ <tr class=xl6931877 height=6 valign=middle style='mso-height-source:userset;
+  height:4.5pt'>
+  <td height=6 class=xl7231877 style='height:4.5pt'></td>
+  <td class=xl7231877></td>
+  <td class=xl7231877></td>
+  <td class=xl7231877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td height=27 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='height:20.25pt'><font face="돋움체">서브코드</font></td>
+  <td class=xl7831877 bgcolor="#DCE6F1" align=center style='border-left:none'><font
+  face="돋움체">서브명</font></td>
+  <td class=xl7831877 bgcolor="#DCE6F1" align=center style='border-left:none'><font
+  face="돋움체">서브명2</font></td>
+  <td class=xl7831877 bgcolor="#DCE6F1" align=center style='border-left:none'><font
+  face="돋움체">Flag1</font></td>
+  <td class=xl7831877 bgcolor="#DCE6F1" align=center style='border-left:none'><font
+  face="돋움체">Flag2</font></td>
+  <td class=xl7831877 bgcolor="#DCE6F1" align=center style='border-left:none'><font
+  face="돋움체">비고</font></td>
+  <td colspan=2 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='border-left:none'><font face="돋움체">작성일</font></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td colspan=8 height=27 class=xl7831877 bgcolor="#DCE6F1" align=center
+  style='height:20.25pt'><font face="돋움체">비고</font></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td height=27 class=xl8231877 align=center style='height:20.25pt;border-top:
+  none'><font face="돋움체">{상세코드.시작}{상세코드.서브코드}</font></td>
+  <td class=xl8231877 align=center style='border-top:none;border-left:none'><font
+  face="돋움체">{상세코드.서브명}</font></td>
+  <td class=xl8231877 align=center style='border-top:none;border-left:none'><font
+  face="돋움체">{상세코드.서브명2}</font></td>
+  <td class=xl8231877 align=center style='border-top:none;border-left:none'><font
+  face="돋움체">{상세코드.Flag1}</font></td>
+  <td class=xl8231877 align=center style='border-top:none;border-left:none'><font
+  face="돋움체">{상세코드.Flag2}</font></td>
+  <td class=xl9631877 style='border-top:none;border-left:none'><font face="돋움체">{상세코드.비고}</font></td>
+  <td colspan=2 class=xl8231877 align=center style='border-left:none'><font
+  face="돋움체">{상세코드.작성일}</font></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td colspan=8 height=27 class=xl9531877 style='height:20.25pt'><font
+  class="font831877" face="돋움체" size="3">{상세코드.비고}{상세코드.끝}</font></td>
+ </tr>
+ <tr height=12 valign=middle style='mso-height-source:userset;height:9.0pt'>
+  <td height=12 class=xl7931877 style='height:9.0pt'></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+ </tr>
+ <tr height=27 valign=middle style='mso-height-source:userset;height:20.25pt'>
+  <td height=27 class=xl7931877 style='height:20.25pt'></td>
+  <td class=xl7931877></td>
+  <td class=xl7731877 align=right><font face="돋움체">작성일 :</font></td>
+  <td class=xl8031877><font face="돋움체">{작성일}</font></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877></td>
+  <td class=xl7931877 align=center><font face="돋움체">(인)</font></td>
+ </tr>
+ <tr height=14 valign=middle style='mso-height-source:userset;height:10.5pt'>
+  <td height=14 class=xl7531877 style='height:10.5pt'></td>
+  <td class=xl7531877></td>
+  <td class=xl7531877></td>
+  <td class=xl7531877></td>
+  <td class=xl7531877></td>
+  <td class=xl7531877></td>
+  <td class=xl7631877></td>
+  <td class=xl7631877></td>
+ </tr>
+ <tr class=xl6931877 height=27 valign=middle style='mso-height-source:userset;
+  height:20.25pt'>
+  <td height=27 class=xl7431877 colspan=5 style='height:20.25pt'><font
+  face="돋움체">문의: SpeedMIS<span style='mso-spacerun:yes'>  </span>정원배 대표<span
+  style='mso-spacerun:yes'>   </span>tel) 010-8244-9795<span
+  style='mso-spacerun:yes'>  </span>mail) speedmis@speedmis.com</font></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+  <td class=xl7331877></td>
+ </tr>
+ <![if supportMisalignedColumns]>
+ <tr height=0 style='display:none'>
+  <td width=116 style='width:87pt'></td>
+  <td width=79 style='width:59pt'></td>
+  <td width=102 style='width:77pt'></td>
+  <td width=97 style='width:73pt'></td>
+  <td width=97 style='width:73pt'></td>
+  <td width=201 style='width:151pt'></td>
+  <td width=59 style='width:44pt'></td>
+  <td width=116 style='width:87pt'></td>
+ </tr>
+ <![endif]>
+</table>
+
+</div>
+
+
+<!----------------------------->
+<!--Excel의 웹 페이지 마법사로 게시해서 나온 결과의 끝-->
+<!----------------------------->
+</body>
+
+</html>

@@ -1,0 +1,68 @@
+<style>
+  .nts { width:100%; max-width:780px; margin:0 auto; font-family:'Malgun Gothic','맑은 고딕',sans-serif; color:#000; }
+  .nts table { width:100%; border-collapse:collapse; }
+  .nts th, .nts td { border:1px solid #000; padding:4px 8px; font-size:12px; vertical-align:middle; }
+  .nts th { background:#f5f5f5; font-weight:600; text-align:center; }
+  .nts .title-row { background:#d9e2f3; text-align:center; font-size:16px; font-weight:700; letter-spacing:6px; padding:10px; }
+  .nts .section-title { background:#e8ecf4; text-align:center; font-weight:700; font-size:13px; padding:6px; }
+  .nts .doc-no { font-size:11px; color:#666; text-align:center; margin-bottom:4px; }
+  .nts .center { text-align:center; }
+  .nts .right { text-align:right; }
+  .nts .sub td, .nts .sub th { font-size:11px; padding:3px 6px; }
+  .nts .footer { margin-top:24px; text-align:center; font-size:13px; font-weight:700; }
+  .nts .sign { margin-top:20px; text-align:right; font-size:13px; padding-right:20px; }
+</style>
+
+<div class="nts">
+
+  <div class="doc-no">[관리번호 {{idx}}]</div>
+
+  <table>
+    <tr><td class="title-row" colspan="4">그 룹 관 리 대 장</td></tr>
+  </table>
+
+  <table style="margin-top:-1px">
+    <colgroup><col style="width:120px"><col><col style="width:120px"><col></colgroup>
+    <tr>
+      <th>그룹 번호</th>
+      <td>{{idx}}</td>
+      <th>작성일자</th>
+      <td>{{wdate}}</td>
+    </tr>
+    <tr>
+      <th>그 룹 명</th>
+      <td colspan="3" style="font-size:14px;font-weight:700">{{gname}}</td>
+    </tr>
+    <tr>
+      <th>비 고</th>
+      <td colspan="3">{{remark}}</td>
+    </tr>
+  </table>
+
+  <table style="margin-top:8px">
+    <tr><td class="section-title" colspan="5">소 속 멤 버 현 황</td></tr>
+  </table>
+  <table class="sub" style="margin-top:-1px">
+    <colgroup>
+      <col style="width:40px"><col style="width:50px"><col><col style="width:140px"><col style="width:80px">
+    </colgroup>
+    <thead>
+      <tr><th>순번</th><th>No.</th><th>성 명</th><th>사 번 (ID)</th><th>권 한</th></tr>
+    </thead>
+    <tbody>
+      {{#each zmembeohwagin}}
+      <tr>
+        <td class="center">{{@index}}</td>
+        <td class="center">{{idx}}</td>
+        <td>{{table_user_id_qnuser_name}}</td>
+        <td class="center">{{user_id}}</td>
+        <td class="center">{{zgwonhan}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div class="footer">위와 같이 그룹 멤버 현황을 확인합니다.</div>
+  <div class="sign">담당자: _______________&nbsp;&nbsp;&nbsp;&nbsp;(인)</div>
+
+</div>

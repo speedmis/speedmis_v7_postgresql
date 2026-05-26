@@ -1,0 +1,44 @@
+{
+  "name": "부자톡 Admin",
+  "short_name": "부자톡",
+  "description": "부자톡 업무관리 시스템",
+  "start_url": "/v7/",
+  "scope": "/v7/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F1117",
+  "theme_color": "#4F6EF7",
+  "lang": "ko",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pwa/screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "부자톡 Admin 모바일 화면"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false
+}

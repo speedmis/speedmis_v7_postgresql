@@ -1,0 +1,44 @@
+<?php
+
+function list_query(&$selectQuery, &$countQuery) {
+    // 목록에서 INFORMATION_SCHEMA JOIN 제거 (672ms → 5ms)
+    // 컬럼 타입 정보는 상세보기(267)에서 확인
+    $selectQuery = preg_replace(
+        '/LEFT JOIN INFORMATION_SCHEMA\.COLUMNS\s+\S+\s+ON[^W]+(?=WHERE|LEFT|$)/i',
+        '',
+        $selectQuery
+    );
+    // SELECT 에 남은 table_COLUMNS.XXX 참조 → 빈값으로 교체
+    $selectQuery = preg_replace('/table_COLUMNS\.\w+/', "''", $selectQuery);
+
+    // COUNT 에서도 제거
+    $countQuery = preg_replace(
+        '/LEFT JOIN INFORMATION_SCHEMA\.COLUMNS[^W]+(?=WHERE|LEFT|$)/i',
+        '',
+        $countQuery
+    );
+}
+
+function list_json_init() {
+    global $__pdo;
+    // 프로그램ID 컬럼 __html 생성 시 필요한 menu_type 을 real_pid 기준으로 사전 수집
+    if ($__pdo) {
+        $rows = $__pdo->query("SELECT real_pid, menu_type FROM mis_menus WHERE use_yn='1'")
+                      ->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $GLOBALS['_290_menuTypes'] = $rows ?: [];
+    }
+}
+
+function list_json_load(&$data) {
+    $rp  = $data['table_real_pidQnreal_pid'] ?? '';
+    if ($rp === '') return;
+
+    $html = '<span class="btn-open" data-opentab=\'{"realPid":"' . $rp . '"}\'>연결</span>';
+    $types = $GLOBALS['_290_menuTypes'] ?? [];
+    if (($types[$rp] ?? '') === '01') {
+        // 266의 PK(idx) 는 col_width=-1 숨김 → URL idx 에 real_pid 값 전달
+        $html .= ' <span class="btn-open" data-opentab=\'{"gubun":266,"idx":"' . $rp . '"}\'>소스</span>';
+    }
+    $origVal = $data['table_real_pidQnidx'] ?? '';
+    $data['__html']['table_real_pidQnidx'] = $html . ' ' . htmlspecialchars((string)$origVal);
+}

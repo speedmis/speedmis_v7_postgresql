@@ -1,0 +1,285 @@
+<?php
+/**
+ * 웹소스관리(업무용MIS) — 266번 프로그램 훅
+ * add_logic       → programs/{real_pid}.php        (서버로직)
+ * add_logic_print → programs/{real_pid}_print.html  (인쇄양식)
+ */
+/**
+ * 행 단위 버튼 — list / view 양쪽 자동 렌더 (DataHandler::_renderRowButtons 호출).
+ * idx 컬럼 (alias=table_mQmidx) 헤더 우측에 [연결] 버튼 → 해당 메뉴를 새 탭으로 오픈.
+ */
+function row_buttons(array $row, array &$buttons): void {
+    $idx = (int)($row['idx'] ?? 0);
+    if ($idx <= 0) return;
+    $buttons['table_mQmidx'][] = [
+        'label'     => '연결',
+        'gubun'     => $idx,
+        'open_full' => true,
+    ];
+}
+
+
+function view_load(&$row) {
+    $realPid = trim($row['real_pid'] ?? '');
+    if ($realPid === '') return;
+
+    // 서버로직: 파일 우선
+    $logicFile = PROGRAMS_PATH . "/{$realPid}.php";
+    if (file_exists($logicFile)) {
+        $row['add_logic'] = file_get_contents($logicFile);
+    }
+
+    // 인쇄양식: 파일 우선
+    $printFile = PROGRAMS_PATH . "/{$realPid}_print.html";
+    if (file_exists($printFile)) {
+        $row['add_logic_print'] = file_get_contents($printFile);
+    }
+
+    // 완전복제 버튼 (폼 상단)
+    $idx = (int)($row['idx'] ?? 0);
+    if ($idx > 0) {
+        $existing = $GLOBALS['_client_formButtons'] ?? [];
+        $existing[] = [
+            'label'   => '완전복제',
+            'action'  => 'fullClone',
+            'idx'     => $idx,
+            'confirm' => '현재 프로그램 속성을 그대로 복사하여 새 프로그램을 생성합니다. 계속하시겠습니까?',
+            'variant' => 'primary',
+        ];
+        $GLOBALS['_client_formButtons'] = $existing;
+    }
+}
+
+function addLogic_treat(&$result) {
+    $action = $result['action'] ?? $result['app'] ?? '';
+    if ($action !== 'fullClone' && $action !== '완전복제') return;
+
+    $pdo = $GLOBALS['__pdo'] ?? null;
+    if (!$pdo) {
+        $result['success'] = false;
+        $result['_client_alert'] = 'DB 연결을 사용할 수 없습니다.';
+        return;
+    }
+
+    $idx = (int)($result['idx'] ?? 0);
+    if ($idx <= 0) {
+        $result['success'] = false;
+        $result['_client_alert'] = '복제할 프로그램 idx 가 없습니다.';
+        return;
+    }
+
+    // 원본 조회
+    $stmt = $pdo->prepare('SELECT * FROM mis_menus WHERE idx = ? LIMIT 1');
+    $stmt->execute([$idx]);
+    $origin = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if (!$origin) {
+        $result['success'] = false;
+        $result['_client_alert'] = '원본 프로그램을 찾을 수 없습니다.';
+        return;
+    }
+
+    $originRealPid = $origin['real_pid'];
+    // full_siteID = real_pid 에서 뒤쪽 연속 숫자 제거한 접두어 (예: speedmis000266 → speedmis)
+    if (!preg_match('/^(.+?)(\d+)$/', $originRealPid, $m)) {
+        $result['success'] = false;
+        $result['_client_alert'] = "real_pid 형식이 올바르지 않습니다: {$originRealPid}";
+        return;
+    }
+    $fullSiteID = $m[1];
+
+    $userId = (string)($GLOBALS['misSessionUserId'] ?? $GLOBALS['MisSession_UserID'] ?? '');
+    $now    = date('Y-m-d H:i:s');
+
+    // 원본 파일 내용 (DB 값보다 파일이 truth)
+    $srcPhp   = PROGRAMS_PATH . "/{$originRealPid}.php";
+    $srcPrint = PROGRAMS_PATH . "/{$originRealPid}_print.html";
+    $addLogicFile      = file_exists($srcPhp)   ? file_get_contents($srcPhp)   : null;
+    $addLogicPrintFile = file_exists($srcPrint) ? file_get_contents($srcPrint) : null;
+
+    // real_pid 치환 대상 — 텍스트/코드/SQL이 들어갈 수 있는 필드
+    // (newRealPid 는 INSERT 후 결정되므로 아래에서 실제 치환)
+    $replaceFields = ['add_logic','add_logic_treat','add_logic_print',
+                      'brief_insert_sql','base_filter','use_condition',
+                      'delete_query','read_only_cond'];
+
+    try {
+        $pdo->beginTransaction();
+
+        // ── 1) mis_menus 복사 ──
+        $excludeMenu = ['idx','real_pid','menu_name','wdate','lastupdate','wdater','lastupdater',
+                        'file_last_update','file_last_updater','compile_date','hit','ip',
+                        'comment_count','check_result'];
+        $copyCols = array_values(array_diff(array_keys($origin), $excludeMenu));
+        $overrides = [];
+        if ($addLogicFile      !== null) $overrides['add_logic']       = $addLogicFile;
+        if ($addLogicPrintFile !== null) $overrides['add_logic_print'] = $addLogicPrintFile;
+
+        $insertCols = array_merge(['real_pid','menu_name','wdater','wdate'], $copyCols);
+        $vals       = ['__PLACEHOLDER__', $origin['menu_name'] . ' 사본', $userId, $now];
+        foreach ($copyCols as $c) {
+            $vals[] = array_key_exists($c, $overrides) ? $overrides[$c] : $origin[$c];
+        }
+        $colList     = implode(',', array_map(fn($c) => "`$c`", $insertCols));
+        $placeholders = implode(',', array_fill(0, count($insertCols), '?'));
+
+        // AUTO_INCREMENT 대비: 실제 생성된 idx 로 real_pid 재계산이 필요하므로,
+        // 임시 real_pid 로 INSERT 후 UPDATE
+        $tmpRealPid = $fullSiteID . '__CLONING__' . uniqid();
+        $vals[0] = $tmpRealPid;
+        $pdo->prepare("INSERT INTO mis_menus ({$colList}) VALUES ({$placeholders})")->execute($vals);
+        $newIdx = (int)$pdo->lastInsertId();
+        $newRealPid = $fullSiteID . str_pad((string)$newIdx, 6, '0', STR_PAD_LEFT);
+
+        // real_pid 치환: mis_menus 본인 필드들 + real_pid 컬럼 자체 갱신
+        $updateParts = ['real_pid = ?'];
+        $updateVals  = [$newRealPid];
+        foreach ($replaceFields as $rf) {
+            $v = $origin[$rf] ?? null;
+            if ($v !== null && $v !== '' && strpos((string)$v, $originRealPid) !== false) {
+                $updateParts[] = "`$rf` = ?";
+                $updateVals[]  = str_replace($originRealPid, $newRealPid, (string)$v);
+            }
+        }
+        // add_logic / add_logic_print 도 파일 기반이면 치환
+        if ($addLogicFile !== null && strpos($addLogicFile, $originRealPid) !== false) {
+            $updateParts[] = '`add_logic` = ?';
+            $updateVals[]  = str_replace($originRealPid, $newRealPid, $addLogicFile);
+            $addLogicFile  = $updateVals[count($updateVals)-1]; // 파일 저장용으로도 치환본 유지
+        }
+        if ($addLogicPrintFile !== null && strpos($addLogicPrintFile, $originRealPid) !== false) {
+            $updateParts[] = '`add_logic_print` = ?';
+            $updateVals[]  = str_replace($originRealPid, $newRealPid, $addLogicPrintFile);
+            $addLogicPrintFile = $updateVals[count($updateVals)-1];
+        }
+        $updateVals[] = $newIdx;
+        $pdo->prepare('UPDATE mis_menus SET ' . implode(', ', $updateParts) . ' WHERE idx = ?')
+            ->execute($updateVals);
+
+        // ── 2) mis_menu_fields 복사 — INSERT...SELECT 서버측 복사
+        //    bit(1) 컬럼(grid_view_fixed/grid_enter/grid_is_visible_mobile) 정확 복사
+        //    + 뷰디자이너 필드(grid_x/y/w/h/form_layout_responsive) 무손실 복사
+        \App\MenuCreator::copyFieldsTable($pdo, 'mis_menu_fields',
+            $originRealPid, $newRealPid, $userId, $now,
+            excludeCols: ['idx','real_pid','wdate','lastupdate','wdater','lastupdater',
+                          'hit','ip','comment_count','check_result'],
+            replaceTextCols: ['items','schema_validation','default_value','grid_templete',
+                              'group_compute','prime_key','grid_relation','form_layout_responsive']
+        );
+
+        // ── 3) 권한 기본값: new_gidx=83, auth_code='02' (개발자 전용)
+        $pdo->prepare("UPDATE mis_menus SET new_gidx = 83, auth_code = '02' WHERE idx = ?")
+            ->execute([$newIdx]);
+
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        $result['success'] = false;
+        $result['_client_alert'] = '복제 실패: ' . $e->getMessage();
+        return;
+    }
+
+    // ── 4) programs/*.php / _print.html 파일 복사 (이미 real_pid 치환 적용된 변수 사용) ──
+    if ($addLogicFile !== null) {
+        @file_put_contents(PROGRAMS_PATH . "/{$newRealPid}.php", $addLogicFile);
+    }
+    if ($addLogicPrintFile !== null) {
+        @file_put_contents(PROGRAMS_PATH . "/{$newRealPid}_print.html", $addLogicPrintFile);
+    }
+
+    // ── 5) 권한 재계산 (new_gidx=83 그룹 멤버 기준으로 mis_menu_user_auth 채움)
+    try {
+        $siteId = $_ENV['SITE_ID'] ?? $fullSiteID;
+        $pdo->prepare('CALL mis_user_authority_proc(?)')->execute([$siteId]);
+    } catch (\Throwable $e) { /* ignore */ }
+
+    // ── 6) 캐시 무효화 ──
+    try {
+        $cache = new \App\MisCache();
+        $cache->invalidateByRealPid($originRealPid);
+        $cache->invalidateByRealPid($newRealPid);
+    } catch (\Throwable $e) { /* ignore */ }
+
+    $result['success']     = true;
+    $result['newIdx']      = $newIdx;
+    $result['newRealPid']  = $newRealPid;
+    $result['reloadList']  = true;
+    $result['_client_toast'] = "완전복제 완료 ({$newRealPid})";
+}
+
+function save_updateAfter($idx, &$afterScript) {
+    $pdo = $GLOBALS['__pdo'] ?? null;
+    if (!$pdo) return;
+
+    $stmt = $pdo->prepare('SELECT real_pid, add_logic, add_logic_print FROM mis_menus WHERE idx = ? LIMIT 1');
+    $stmt->execute([$idx]);
+    $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if (!$row || empty(trim($row['real_pid'] ?? ''))) return;
+
+    $realPid = trim($row['real_pid']);
+
+    // ── 서버로직 파일 동기화 ──
+    _syncFile(PROGRAMS_PATH . "/{$realPid}.php", trim($row['add_logic'] ?? ''), true);
+
+    // ── 인쇄양식 파일 동기화 ──
+    _syncFile(PROGRAMS_PATH . "/{$realPid}_print.html", trim($row['add_logic_print'] ?? ''), false);
+}
+
+/**
+ * 리스트 상단 사용자 버튼: "DB 에 코멘트적용"
+ * — 4 사이트(kimgo/부자톡/postgo/msgo) 모두 노출.
+ *   각 DB 에 mis_apply_table_comments / mis_apply_column_comments 프로시저가 설치되어 있어야 함.
+ */
+function pageLoad() {
+    $existing = $GLOBALS['_client_buttons'] ?? [];
+    $existing[] = [
+        'label'   => 'DB 에 코멘트적용',
+        'action'  => 'applyDbComments',
+        'confirm' => 'mis_menus / mis_menu_fields 기준으로 모든 테이블·컬럼 코멘트를 적용합니다. 진행할까요?',
+    ];
+    $GLOBALS['_client_buttons'] = $existing;
+}
+
+/**
+ * 사용자 버튼 처리 — driver 별 호출 분기
+ *   mysql/pgsql : CALL proc(0)
+ *   sqlsrv      : EXEC proc @p_dry=0
+ */
+function list_json_init() {
+    global $customAction, $__pdo;
+    if (!$__pdo || $customAction !== 'applyDbComments') return;
+
+    $isMssql = \App\Config\Database::isMssql();
+
+    $stats = [];
+    foreach (['mis_apply_table_comments' => '테이블',
+              'mis_apply_column_comments' => '컬럼'] as $proc => $label) {
+        try {
+            $sql = $isMssql ? "EXEC {$proc} @p_dry=0" : "CALL {$proc}(0)";
+            $stmt = $__pdo->query($sql);
+            $row = $stmt ? $stmt->fetch(\PDO::FETCH_ASSOC) : null;
+            if ($stmt) $stmt->closeCursor();
+            $stats[] = sprintf('%s 신규=%d 추가=%d 스킵=%d 실패=%d',
+                $label,
+                (int)($row['set_new']  ?? 0),
+                (int)($row['appended'] ?? 0),
+                (int)($row['skipped']  ?? 0),
+                (int)($row['failed']   ?? 0)
+            );
+        } catch (\Throwable $e) {
+            $stats[] = "{$label} 실패: " . $e->getMessage();
+        }
+    }
+
+    $GLOBALS['_client_toast'] = '코멘트 적용 — ' . implode(' / ', $stats);
+}
+
+function _syncFile(string $filePath, string $code, bool $phpTag): void {
+    if ($code === '') {
+        if (file_exists($filePath)) @unlink($filePath);
+        return;
+    }
+    if ($phpTag && stripos(ltrim($code), '<?php') !== 0) {
+        $code = "<?php\n" . $code;
+    }
+    @file_put_contents($filePath, $code);
+}

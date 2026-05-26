@@ -1,0 +1,171 @@
+<?php
+
+
+  function pageLoad() {
+     
+
+      $GLOBALS['_client_buttons'] = [
+          ['label' => '권한적용', 'action' => '권한적용']
+      ];
+  }
+
+
+function list_json_init() {
+    global $isFirstLoad, $customAction, $__pdo;
+
+    if ($customAction === '권한적용') {
+        // 일괄승인 로직
+        execSql("call mis_user_authority_proc('{$_ENV['SITE_ID']}');");
+        $GLOBALS['_client_toast'] = ['msg' => '권한적용 완료', 'type' => 'success', 'duration' => 8000];
+    }
+
+    // depth=1 각 행에 대해 자신+하위(use_yn=1) 개수 사전 집계 → list_json_load 에서 사용
+    if ($__pdo) {
+        $rows = $__pdo->query("
+            WITH RECURSIVE tree AS (
+                SELECT idx, real_pid, up_real_pid, use_yn, real_pid AS root_rp
+                FROM mis_menus WHERE depth = 1
+                UNION ALL
+                SELECT c.idx, c.real_pid, c.up_real_pid, c.use_yn, t.root_rp
+                FROM mis_menus c JOIN tree t ON c.up_real_pid = t.real_pid
+            )
+            SELECT root_rp, SUM(CASE WHEN use_yn='1' THEN 1 ELSE 0 END) AS cnt
+            FROM tree GROUP BY root_rp
+        ")->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $GLOBALS['_314_descCounts'] = $rows ?: [];
+    }
+}
+  function save_writeAfter($newIdx, &$afterScript) {
+      global $__pdo;
+      $siteId = $_ENV['SITE_ID'] ?? 'speedmis';
+      $realPid = $siteId . str_pad($newIdx, 6, '0', STR_PAD_LEFT);
+      $__pdo->prepare("UPDATE mis_menus SET real_pid = ?, use_yn = '1' WHERE idx = ? AND (real_pid IS NULL OR real_pid = '')")
+            ->execute([$realPid, $newIdx]);
+  }
+
+  function list_json_load(&$data) {
+
+    global $customAction, $__pdo;
+
+      $rp = $data['real_pid'] ?? '';
+      $rowIdx = (int)($data['idx'] ?? 0);
+      if ($rp) {
+          $html = '<span class="btn-open" data-opentab=\'{"realPid":"' . $rp . '"}\'>연결</span>';
+          // '추가' — 커스텀 팝업 (data-menu-add 위임)
+          $html .= ' <span class="btn-open" data-menu-add="' . $rowIdx . '">추가</span>';
+          if (($data['menu_type'] ?? '') === '01') {
+              // 266의 PK(idx) 는 col_width=-1 숨김 PK → URL idx 파라미터에 real_pid 값을 넘겨야 매칭됨
+              $html .= ' <span class="btn-open" data-opentab=\'{"gubun":266,"idx":"' . $rp . '"}\'>소스</span>';
+          }
+          $data['__html']['real_pid'] = $html . ' ' . htmlspecialchars($rp);
+      }
+
+      // depth=1 행에만 권한전달 버튼
+      $depth = (int)($data['depth'] ?? 0);
+      if ($depth === 1) {
+          $counts   = $GLOBALS['_314_descCounts'] ?? [];
+          $cnt      = (int)($counts[$rp] ?? 0);
+          $rowIdx   = (int)($data['idx'] ?? 0);
+          $menuName = $data['menu_name'] ?? '';
+          $newGidx  = (int)($data['new_gidx'] ?? 0);
+          $authCode = (string)($data['auth_code'] ?? '');
+
+          // new_gidx 이름 — mis_groups.gname
+          $gname = '(없음)';
+          if ($newGidx > 0 && $__pdo) {
+              $st = $__pdo->prepare('SELECT gname FROM mis_groups WHERE idx = ? LIMIT 1');
+              $st->execute([$newGidx]);
+              $gname = (string)($st->fetchColumn() ?: '(없음)');
+          }
+          // auth_code 이름 — mis_common_data (부모: 메뉴권한선택)
+          $aname = $authCode !== '' ? $authCode : '(없음)';
+          if ($authCode !== '' && $__pdo) {
+              $st = $__pdo->prepare("
+                  SELECT m.kname FROM mis_common_data m
+                   JOIN mis_common_data p ON m.gcode = p.real_cid
+                  WHERE p.kname = '메뉴권한선택' AND m.kcode = ? AND m.use_yn='1' LIMIT 1
+              ");
+              $st->execute([$authCode]);
+              $k = $st->fetchColumn();
+              if ($k) $aname = "{$authCode} {$k}";
+          }
+
+          $confirmMsg = "[{$menuName}] 메뉴 하위의 {$cnt}개 메뉴의 권한도 {$gname} 이름, {$aname} 이름 으로 바꾸시겠습니까?";
+
+          $btn = '<span class="btn-open"'
+               . ' data-mis-action="applyAuth"'
+               . ' data-mis-gubun="314"'
+               . ' data-mis-idx="'     . $rowIdx . '"'
+               . ' data-mis-confirm="' . htmlspecialchars($confirmMsg, ENT_QUOTES, 'UTF-8') . '"'
+               . '>적용(' . $cnt . ')</span>';
+          // 원본 값(보통 공란) 뒤에 버튼 이어붙이기
+          $orig = $data['zgwonhanjeondal'] ?? '';
+          $data['__html']['zgwonhanjeondal'] = ($orig !== '' ? htmlspecialchars($orig) . ' ' : '') . $btn;
+      }
+  }
+
+  function addLogic_treat(&$result) {
+      if (($result['action'] ?? '') !== 'applyAuth') return;
+
+      $pdo = $GLOBALS['__pdo'] ?? null;
+      if (!$pdo) { $result['success'] = false; $result['_client_alert'] = 'DB 없음'; return; }
+
+      $idx = (int)($result['idx'] ?? 0);
+      if ($idx <= 0) { $result['success'] = false; $result['_client_alert'] = 'idx 누락'; return; }
+
+      // 원본 행 조회
+      $st = $pdo->prepare('SELECT real_pid, new_gidx, auth_code FROM mis_menus WHERE idx = ? LIMIT 1');
+      $st->execute([$idx]);
+      $row = $st->fetch(\PDO::FETCH_ASSOC);
+      if (!$row) { $result['success'] = false; $result['_client_alert'] = '행 없음'; return; }
+
+      $rp       = $row['real_pid'];
+      $newGidx  = $row['new_gidx'];
+      $authCode = $row['auth_code'];
+
+      try {
+          // 1) 재귀 CTE 로 자기 자신 포함 모든 하위 idx 수집
+          $sel = $pdo->prepare("
+              WITH RECURSIVE tree AS (
+                  SELECT idx, real_pid FROM mis_menus WHERE real_pid = :rp
+                  UNION ALL
+                  SELECT c.idx, c.real_pid FROM mis_menus c JOIN tree t ON c.up_real_pid = t.real_pid
+              )
+              SELECT idx FROM tree
+          ");
+          $sel->execute([':rp' => $rp]);
+          $idxs = $sel->fetchAll(\PDO::FETCH_COLUMN);
+          if (!$idxs) {
+              $result['success'] = false;
+              $result['_client_alert'] = '대상 행이 없습니다.';
+              return;
+          }
+
+          // 2) IN (...) 로 일괄 UPDATE
+          $ph = implode(',', array_fill(0, count($idxs), '?'));
+          $up = $pdo->prepare("UPDATE mis_menus SET new_gidx = ?, auth_code = ? WHERE idx IN ({$ph})");
+          $up->execute(array_merge([$newGidx, $authCode], $idxs));
+          $affected = $up->rowCount();
+
+          // 3) 권한 재계산 프로시저 호출
+          $siteId = $_ENV['SITE_ID'] ?? 'speedmis';
+          $pdo->prepare("call mis_user_authority_proc(?)")->execute([$siteId]);
+
+          $result['success']       = true;
+          $result['affected']      = $affected;
+          $result['reloadList']    = true;
+          $result['_client_toast'] = "권한 전달 완료 ({$affected}건)";
+      } catch (\Throwable $e) {
+          $result['success']       = false;
+          $result['_client_alert'] = '실행 실패: ' . $e->getMessage();
+      }
+  }
+
+  function view_load(&$row) {
+      $rp = $row['real_pid'] ?? '';
+      if ($rp) {
+          $GLOBALS['_client_formButtons'] = [
+              ['label' => '연결', 'realPid' => $rp, 'openFull' => true]
+          ];
+      }
+  }

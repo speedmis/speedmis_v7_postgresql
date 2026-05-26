@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedMIS v7 — 도움말</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--accent:#3182F6;--accent-light:#E8F3FF;--text-1:#191F28;--text-2:#4E5968;--text-3:#8B95A1;--bg:#fff;--bg-2:#F7F8FA;--border:#E5E8EB;--sidebar-w:280px;--header-h:56px;--success:#03B26C;--code-bg:#F4F6F8;--radius:8px}
+        html{scroll-behavior:smooth}
+        body{font-family:'Pretendard',-apple-system,system-ui,sans-serif;color:var(--text-1);background:var(--bg);line-height:1.7}
+        a{color:var(--accent);text-decoration:none}
+        a:hover{text-decoration:underline}
+
+        /* 레이아웃 */
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:var(--sidebar-w);border-right:1px solid var(--border);background:var(--bg-2);position:fixed;top:0;bottom:0;overflow-y:auto;z-index:20;transition:transform 0.25s}
+        .main{margin-left:var(--sidebar-w);flex:1;min-width:0}
+        .content{max-width:820px;margin:0 auto;padding:40px 48px 80px}
+
+        /* 헤더 */
+        .doc-header{height:var(--header-h);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;position:sticky;top:0;background:rgba(255,255,255,0.9);backdrop-filter:blur(12px);z-index:10}
+        .doc-header-logo{font-size:18px;font-weight:800;color:var(--accent)}
+        .doc-header-logo span{color:var(--text-1)}
+        .doc-header-search{margin-left:auto;position:relative}
+        .doc-header-search input{width:240px;height:36px;border:1px solid var(--border);border-radius:8px;padding:0 12px 0 36px;font-size:14px;background:var(--bg-2);outline:none;transition:border-color 0.15s}
+        .doc-header-search input:focus{border-color:var(--accent)}
+        .doc-header-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3)}
+        .doc-header-back{font-size:14px;color:var(--text-2);margin-left:16px}
+        .doc-header-nav{display:flex;gap:4px;margin-left:auto}
+        .doc-header-nav a{font-size:13px;color:var(--text-2);padding:4px 10px;border-radius:6px;text-decoration:none;font-weight:500;transition:all 0.15s}
+        .doc-header-nav a:hover{background:var(--accent-light);color:var(--accent);text-decoration:none}
+
+        /* 사이드바 */
+        .sidebar-header{padding:16px 20px;border-bottom:1px solid var(--border)}
+        .sidebar-header h2{font-size:14px;font-weight:700;color:var(--text-1)}
+        .sidebar-header p{font-size:12px;color:var(--text-3);margin-top:2px}
+        .sidebar-nav{padding:12px 0}
+        .sidebar-group{padding:0 12px;margin-bottom:4px}
+        .sidebar-group-title{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;padding:8px 8px 4px;display:flex;align-items:center;gap:6px}
+        .sidebar-group-title .dot{width:6px;height:6px;border-radius:50%}
+        .sidebar-link{display:block;padding:6px 16px 6px 24px;font-size:13px;color:var(--text-2);border-radius:6px;transition:all 0.1s;cursor:pointer;border:none;background:none;width:100%;text-align:left}
+        .sidebar-link:hover{background:var(--border);color:var(--text-1);text-decoration:none}
+        .sidebar-link.active{background:var(--accent-light);color:var(--accent);font-weight:600}
+
+        /* 탭 선택 */
+        .perspective-tabs{display:flex;gap:8px;margin-bottom:32px;border-bottom:1px solid var(--border);padding-bottom:0}
+        .perspective-tab{padding:10px 20px;font-size:14px;font-weight:600;color:var(--text-3);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all 0.15s}
+        .perspective-tab:hover{color:var(--text-2)}
+        .perspective-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+        /* 콘텐츠 */
+        .content h1{font-size:32px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px}
+        .content h2{font-size:24px;font-weight:700;margin:48px 0 16px;padding-top:24px;border-top:1px solid var(--border)}
+        .content h2:first-of-type{border-top:none;margin-top:24px}
+        .content h3{font-size:18px;font-weight:700;margin:32px 0 12px;color:var(--text-1)}
+        .content p{margin-bottom:16px;color:var(--text-2)}
+        .content ul,.content ol{margin:0 0 16px 20px;color:var(--text-2)}
+        .content li{margin-bottom:6px}
+        .content strong{color:var(--text-1)}
+
+        /* 코드 */
+        pre{background:var(--code-bg);border-radius:var(--radius);padding:16px 20px;overflow-x:auto;margin:16px 0;font-size:13px;line-height:1.6;font-family:'JetBrains Mono',monospace;border:1px solid var(--border)}
+        code{background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:13px;font-family:'JetBrains Mono',monospace;color:#D63384}
+        pre code{background:none;padding:0;color:var(--text-1)}
+
+        /* 테이블 */
+        table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+        th,td{border:1px solid var(--border);padding:8px 12px;text-align:left}
+        th{background:var(--bg-2);font-weight:600;font-size:13px;color:var(--text-2)}
+
+        /* 알림 박스 */
+        .callout{padding:16px 20px;border-radius:var(--radius);margin:16px 0;font-size:14px;display:flex;gap:12px;align-items:flex-start}
+        .callout-info{background:#E8F3FF;border-left:4px solid var(--accent)}
+        .callout-warn{background:#FFF7E6;border-left:4px solid #F59E0B}
+        .callout-danger{background:#FDE8E8;border-left:4px solid #F04452}
+        .callout-success{background:#E6F9F0;border-left:4px solid #03B26C}
+        .callout-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+
+        /* 섹션 */
+        .doc-section{display:none}
+        .doc-section.active{display:block}
+
+        /* UI 다이어그램 */
+        .ui-diagram{border:2px solid var(--border);border-radius:12px;overflow:hidden;font-size:12px;margin:24px 0;background:var(--bg-2)}
+        .ui-diagram *{box-sizing:border-box}
+        .ui-d-topbar{height:36px;background:#1C2333;display:flex;align-items:center;padding:0 12px;gap:8px}
+        .ui-d-topbar .logo{color:#4F6EF7;font-weight:800;font-size:13px}
+        .ui-d-topbar .tabs{display:flex;gap:1px;margin-left:12px}
+        .ui-d-topbar .tab{padding:4px 12px;font-size:11px;color:#7a9ab8;background:#17222e;border-radius:4px 4px 0 0}
+        .ui-d-topbar .tab.active{color:#fff;background:#2a3a4e}
+        .ui-d-topbar .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+        .ui-d-topbar .right span{font-size:11px;color:#7a9ab8}
+        .ui-d-topbar .gear{width:18px;height:18px;background:#2a3a4e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#7a9ab8;font-size:10px}
+        .ui-d-body{display:flex;min-height:300px}
+        .ui-d-sidebar{width:140px;background:#13192a;border-right:1px solid #1e2a3a;padding:8px 0}
+        .ui-d-sidebar .item{padding:4px 12px;font-size:11px;color:#6a8ba8;cursor:default}
+        .ui-d-sidebar .item.active{color:#5aaee8;background:rgba(79,158,237,0.15);font-weight:600}
+        .ui-d-main{flex:1;display:flex;flex-direction:column}
+        .ui-d-header{height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--border);background:#fff}
+        .ui-d-header .title{font-size:12px;font-weight:700}
+        .ui-d-header .btns{display:flex;gap:4px}
+        .ui-d-header .btn-sm{padding:2px 8px;font-size:10px;border-radius:4px;background:var(--bg-2);border:1px solid var(--border)}
+        .ui-d-header .btn-accent{background:#4F6EF7;color:#fff;border-color:#4F6EF7}
+        .ui-d-content{display:flex;flex:1}
+        .ui-d-grid{flex:1;border-right:1px solid var(--border)}
+        .ui-d-toolbar{height:26px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--bg-2);border-bottom:1px solid var(--border)}
+        .ui-d-toolbar .icon{width:16px;height:16px;background:var(--border);border-radius:3px}
+        .ui-d-toolbar .filter{width:60px;height:16px;background:#fff;border:1px solid var(--border);border-radius:3px}
+        .ui-d-toolbar .label{font-size:9px;color:var(--text-3)}
+        .ui-d-table{font-size:10px;width:100%}
+        .ui-d-table th{background:var(--bg-2);padding:3px 6px;text-align:left;font-weight:600;color:var(--text-3);border-bottom:1px solid var(--border)}
+        .ui-d-table td{padding:3px 6px;border-bottom:1px solid var(--border);color:var(--text-2)}
+        .ui-d-table tr:hover{background:#f0f6ff}
+        .ui-d-table .link{color:#4F6EF7;text-decoration:underline}
+        .ui-d-panel{width:220px;display:flex;flex-direction:column}
+        .ui-d-panel-header{height:26px;display:flex;align-items:center;padding:0 8px;border-bottom:1px solid var(--border);background:#fff;gap:4px}
+        .ui-d-panel-header .ptab{font-size:10px;font-weight:600;color:var(--text-3);padding:2px 6px}
+        .ui-d-panel-header .ptab.active{color:#4F6EF7}
+        .ui-d-panel-header .sizes{margin-left:auto;display:flex;gap:2px}
+        .ui-d-panel-header .size{width:14px;height:14px;font-size:8px;display:flex;align-items:center;justify-content:center;background:var(--bg-2);border:1px solid var(--border);border-radius:2px;color:var(--text-3)}
+        .ui-d-panel-header .size.active{background:#4F6EF7;color:#fff;border-color:#4F6EF7}
+        .ui-d-form{padding:8px;font-size:10px}
+        .ui-d-form-row{display:flex;margin-bottom:3px;border:1px solid var(--border)}
+        .ui-d-form-label{width:60px;background:var(--bg-2);padding:3px 6px;font-weight:600;color:var(--text-2);border-right:1px solid var(--border)}
+        .ui-d-form-value{flex:1;padding:3px 6px;color:var(--text-1)}
+        .ui-d-pager{height:24px;display:flex;align-items:center;justify-content:center;gap:4px;border-top:1px solid var(--border);background:#fff}
+        .ui-d-pager span{font-size:9px;color:var(--text-3)}
+        .ui-d-pager .pg{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;border:1px solid var(--border);border-radius:3px}
+        .ui-d-pager .pg.active{background:#4F6EF7;color:#fff;border-color:#4F6EF7}
+        /* 라벨 화살표 */
+        .ui-label{position:absolute;font-size:11px;font-weight:600;color:#E5484D;white-space:nowrap;pointer-events:none}
+        .ui-label::before{content:'';position:absolute;border:1px solid #E5484D}
+        .ui-wrap{position:relative}
+
+        /* 반응형 */
+        .menu-toggle{display:none;background:none;border:none;font-size:24px;cursor:pointer;padding:4px}
+        @media(max-width:768px){
+            .sidebar{transform:translateX(-100%)}
+            .sidebar.open{transform:translateX(0)}
+            .main{margin-left:0}
+            .content{padding:24px 20px 60px}
+            .menu-toggle{display:block}
+            .doc-header-search input{width:160px}
+            .perspective-tabs{overflow-x:auto}
+        }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>SpeedMIS v7</h2>
+            <p>도움말 & 가이드</p>
+        </div>
+        <nav class="sidebar-nav">
+            <!-- 시작하기 -->
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"><span class="dot" style="background:var(--accent)"></span>시작하기</div>
+                <a class="sidebar-link active" href="#intro" data-section="intro">소개</a>
+                <a class="sidebar-link" href="#ui-guide" data-section="ui-anatomy">화면 구성 가이드</a>
+                <a class="sidebar-link" href="#install" data-section="install">설치 가이드</a>
+                <a class="sidebar-link" href="#quickstart" data-section="quickstart">빠른 시작</a>
+            </div>
+            <!-- 개발자 -->
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"><span class="dot" style="background:#8B5CF6"></span>개발자 가이드</div>
+                <a class="sidebar-link" href="#project-structure" data-section="dev-structure">프로젝트 구조</a>
+                <a class="sidebar-link" href="#hooks" data-section="dev-hooks">서버 훅 시스템</a>
+                <a class="sidebar-link" href="#globals" data-section="dev-globals">전역변수 레퍼런스</a>
+                <a class="sidebar-link" href="#client-control" data-section="dev-client">클라이언트 제어</a>
+                <a class="sidebar-link" href="#field-override" data-section="dev-fields">필드 속성 커스텀</a>
+                <a class="sidebar-link" href="#list-html" data-section="dev-listhtml">목록 HTML 렌더링</a>
+                <a class="sidebar-link" href="#print-template" data-section="dev-print">인쇄양식 템플릿</a>
+                <a class="sidebar-link" href="#exec-sql" data-section="dev-execsql">SQL 실행 헬퍼</a>
+                <a class="sidebar-link" href="#common-logic" data-section="dev-common">공통/사용자 로직</a>
+                <a class="sidebar-link" href="#api-reference" data-section="dev-api">API 레퍼런스</a>
+            </div>
+            <!-- 관리자 -->
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"><span class="dot" style="background:#03B26C"></span>관리자 가이드</div>
+                <a class="sidebar-link" href="#menu-management" data-section="admin-menu">메뉴 관리</a>
+                <a class="sidebar-link" href="#field-management" data-section="admin-field">필드 관리</a>
+                <a class="sidebar-link" href="#auth-management" data-section="admin-auth">권한 관리</a>
+                <a class="sidebar-link" href="#program-mode" data-section="admin-mode">프로그램 모드</a>
+                <a class="sidebar-link" href="#settings" data-section="admin-settings">설정</a>
+            </div>
+            <!-- 사용자 -->
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"><span class="dot" style="background:#F59E0B"></span>사용자 가이드</div>
+                <a class="sidebar-link" href="#grid" data-section="user-grid">그리드 사용법</a>
+                <a class="sidebar-link" href="#form" data-section="user-form">폼 사용법</a>
+                <a class="sidebar-link" href="#filter" data-section="user-filter">필터 & 검색</a>
+                <a class="sidebar-link" href="#aggregate" data-section="user-aggregate">부분합 / 총합 (aggregate)</a>
+                <a class="sidebar-link" href="#inline-edit" data-section="user-listedit">목록편집</a>
+                <a class="sidebar-link" href="#mobile" data-section="user-mobile">모바일</a>
+                <a class="sidebar-link" href="#shortcuts" data-section="user-shortcuts">단축키</a>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"><span class="dot" style="background:#EC4899"></span>FAQ &amp; 팁</div>
+                <a class="sidebar-link" href="#faq" data-section="faq">자주 묻는 질문</a>
+                <a class="sidebar-link" href="#tips-fields" data-section="tips-fields">필드 설계 팁</a>
+                <a class="sidebar-link" href="#tips-perf" data-section="tips-perf">성능 / 캐시</a>
+                <a class="sidebar-link" href="#tips-conv" data-section="tips-conv">v6 → v7 컨벤션</a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- 메인 -->
+    <div class="main">
+        <header class="doc-header">
+            <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+            <div class="doc-header-logo">Speed<span>MIS</span> Docs</div>
+            <div class="doc-header-search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" placeholder="검색..." id="searchInput" oninput="handleSearch(this.value)">
+            </div>
+            <nav class="doc-header-nav">
+                <a href="/home/">홈</a>
+                <a href="/v7">데모</a>
+            </nav>
+        </header>
+
+        <div class="content" id="content">
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 소개 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section active" id="sec-intro">
+<h1>SpeedMIS v7 소개</h1>
+<p>SpeedMIS는 <strong>코딩 없이 업무 시스템(MIS)을 구축</strong>하는 노코드 웹 빌더입니다. 2005년부터 21년간 발전해온 기업용 플랫폼으로, 메뉴와 필드를 정의하면 목록·조회·수정·삭제 화면이 자동 생성됩니다.</p>
+
+<h2>v7 기술 스택</h2>
+<table>
+<tr><th>구분</th><th>기술</th></tr>
+<tr><td>백엔드</td><td>PHP 8.3 + Slim 4</td></tr>
+<tr><td>프론트엔드</td><td>React 18 + Vite</td></tr>
+<tr><td>데이터베이스</td><td>MariaDB 10.11 / MySQL 8</td></tr>
+<tr><td>스타일</td><td>Tailwind CSS + CSS 변수 디자인 시스템</td></tr>
+<tr><td>코드 에디터</td><td>Monaco Editor (VS Code 엔진)</td></tr>
+</table>
+
+<h2>핵심 특징</h2>
+<ul>
+<li><strong>노코드 CRUD</strong> — 메뉴+필드 등록만으로 완전한 프로그램 자동 생성</li>
+<li><strong>서버 훅 시스템</strong> — 16개 이벤트 훅으로 비즈니스 로직 확장 (PHP)</li>
+<li><strong>실시간 목록편집</strong> — 그리드에서 직접 값 수정, Enter로 셀 이동</li>
+<li><strong>인쇄양식 빌더</strong> — HTML 템플릿 + 자식 프로그램 루프</li>
+<li><strong>마스터-디테일</strong> — 부모-자식 프로그램 탭으로 연결</li>
+<li><strong>모바일 자동 대응</strong> — 토스/Samsung One UI 감성 카드형 UI</li>
+<li><strong>다크모드</strong> — 라이트/다크 원클릭 전환</li>
+<li><strong>공통 로직</strong> — <code>_common.php</code> + <code>_common_udef.php</code></li>
+</ul>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 화면 구성 가이드 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-ui-anatomy">
+<h1>화면 구성 가이드</h1>
+<p>SpeedMIS v7의 데스크톱 화면은 크게 <strong>탑바(Topbar)</strong>, <strong>사이드바(Sidebar)</strong>, <strong>메인 영역(Main)</strong>으로 구성됩니다. 아래 다이어그램에서 각 영역의 이름과 역할을 확인하세요.</p>
+
+<h2>전체 레이아웃</h2>
+<div class="ui-diagram">
+    <!-- 탑바 -->
+    <div class="ui-d-topbar">
+        <div class="logo">SpeedMIS</div>
+        <div class="tabs">
+            <div class="tab active">거래처관리</div>
+            <div class="tab">매출현황</div>
+            <div class="tab">재고관리</div>
+        </div>
+        <div class="right">
+            <span>홍길동</span>
+            <div class="gear">⚙</div>
+        </div>
+    </div>
+    <div class="ui-d-body">
+        <!-- 사이드바 -->
+        <div class="ui-d-sidebar">
+            <div class="item" style="color:#4a9be8;font-weight:700;padding:6px 12px;font-size:12px">영업관리</div>
+            <div class="item active">거래처관리</div>
+            <div class="item">매출현황</div>
+            <div class="item">계약관리</div>
+            <div class="item" style="color:#4a9be8;font-weight:700;padding:6px 12px 4px;font-size:12px;margin-top:8px">재고관리</div>
+            <div class="item">재고현황</div>
+            <div class="item">입출고관리</div>
+        </div>
+        <!-- 메인 -->
+        <div class="ui-d-main">
+            <!-- 브레드크럼 + 타이틀 -->
+            <div class="ui-d-header">
+                <div class="title">영업관리 &gt; 거래처관리</div>
+                <div class="btns">
+                    <div class="btn-sm">엑셀</div>
+                    <div class="btn-sm btn-accent">신규</div>
+                </div>
+            </div>
+            <!-- 그리드 + 패널 -->
+            <div class="ui-d-content">
+                <!-- 그리드 -->
+                <div class="ui-d-grid">
+                    <div class="ui-d-toolbar">
+                        <div class="label">필터:</div>
+                        <div class="filter"></div>
+                        <div class="filter" style="width:80px"></div>
+                        <div style="margin-left:auto;font-size:9px;color:var(--text-3)">총 127건</div>
+                    </div>
+                    <table class="ui-d-table">
+                        <tr><th style="width:30px">No</th><th>거래처명</th><th>대표자</th><th>전화번호</th><th>지역</th></tr>
+                        <tr style="background:#f0f6ff"><td>1</td><td class="link">삼성전자</td><td>이재용</td><td>02-1234-5678</td><td>서울</td></tr>
+                        <tr><td>2</td><td class="link">LG전자</td><td>구광모</td><td>02-9876-5432</td><td>서울</td></tr>
+                        <tr><td>3</td><td class="link">현대모비스</td><td>정의선</td><td>031-123-4567</td><td>경기</td></tr>
+                        <tr><td>4</td><td class="link">SK하이닉스</td><td>박정호</td><td>031-789-0123</td><td>경기</td></tr>
+                        <tr><td>5</td><td class="link">포스코</td><td>최정우</td><td>054-220-0114</td><td>경북</td></tr>
+                    </table>
+                    <div class="ui-d-pager">
+                        <span>◀</span>
+                        <div class="pg active">1</div>
+                        <div class="pg">2</div>
+                        <div class="pg">3</div>
+                        <span>▶</span>
+                    </div>
+                </div>
+                <!-- 패널 -->
+                <div class="ui-d-panel">
+                    <div class="ui-d-panel-header">
+                        <div class="ptab active">기본정보</div>
+                        <div class="ptab">매출내역</div>
+                        <div class="ptab">계약</div>
+                        <div class="sizes">
+                            <div class="size">1</div>
+                            <div class="size active">2</div>
+                            <div class="size">3</div>
+                            <div class="size">4</div>
+                        </div>
+                    </div>
+                    <div class="ui-d-form">
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">거래처명</div><div class="ui-d-form-value"><strong>삼성전자</strong></div></div>
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">사업자번호</div><div class="ui-d-form-value">124-81-00998</div></div>
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">대표자</div><div class="ui-d-form-value">이재용</div></div>
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">전화</div><div class="ui-d-form-value">02-1234-5678</div></div>
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">주소</div><div class="ui-d-form-value">서울 서초구 강남대로</div></div>
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">업태</div><div class="ui-d-form-value">제조업</div></div>
+                        <div class="ui-d-form-row"><div class="ui-d-form-label">등록일</div><div class="ui-d-form-value">2024-01-15</div></div>
+                        <div style="margin-top:6px;display:flex;gap:4px;justify-content:flex-end">
+                            <div class="btn-sm" style="font-size:9px">삭제</div>
+                            <div class="btn-sm btn-accent" style="font-size:9px">저장</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2>영역별 명칭과 역할</h2>
+<table>
+<tr><th style="width:120px">영역</th><th>이름</th><th>설명</th></tr>
+<tr><td style="background:#1C2333;color:#fff;font-size:12px;text-align:center">■ 탑바</td><td><strong>Topbar</strong></td><td>로고, 열린 프로그램 탭, 사용자 이름, 설정(⚙) 버튼. 높이 48px 고정</td></tr>
+<tr><td style="background:#13192a;color:#6a8ba8;font-size:12px;text-align:center">■ 사이드바</td><td><strong>Sidebar</strong></td><td>1레벨(카테고리)·2레벨(프로그램) 메뉴 트리. 펼침 240px, 접힘 56px</td></tr>
+<tr><td style="background:var(--bg-2);font-size:12px;text-align:center">■ 툴바</td><td><strong>Toolbar</strong></td><td>필터 드롭다운, 검색, 엑셀/신규 버튼, 전체 건수 표시</td></tr>
+<tr><td style="font-size:12px;text-align:center">■ 그리드</td><td><strong>DataGrid</strong></td><td>목록 테이블. 컬럼 헤더 클릭 정렬, 행 클릭으로 패널 열기, 인라인 편집 지원</td></tr>
+<tr><td style="background:#fff;font-size:12px;text-align:center;border:2px solid #4F6EF7">■ 패널</td><td><strong>Panel (DataForm)</strong></td><td>선택한 행의 상세·수정 폼. 탭으로 자식 프로그램 전환, 4단계 크기 조절(1~4)</td></tr>
+<tr><td style="font-size:12px;text-align:center">■ 페이저</td><td><strong>Pagination</strong></td><td>페이지 네비게이션. 기본 50건/페이지, pageSize 파라미터로 조절</td></tr>
+</table>
+
+<h2>탑바(Topbar) 상세</h2>
+<div class="ui-diagram" style="border-radius:8px">
+    <div class="ui-d-topbar" style="height:44px;padding:0 16px">
+        <div class="logo" style="font-size:15px">SpeedMIS</div>
+        <div class="tabs" style="margin-left:16px">
+            <div class="tab active" style="padding:6px 14px;font-size:12px">거래처관리 ✕</div>
+            <div class="tab" style="padding:6px 14px;font-size:12px">매출현황 ✕</div>
+            <div class="tab" style="padding:6px 14px;font-size:12px">재고관리 ✕</div>
+        </div>
+        <div class="right" style="gap:12px">
+            <span style="font-size:12px">홍길동</span>
+            <div class="gear" style="width:22px;height:22px;font-size:12px">⚙</div>
+        </div>
+    </div>
+</div>
+<table>
+<tr><th style="width:140px">요소</th><th>설명</th></tr>
+<tr><td><strong>로고</strong></td><td>사이트 타이틀 (.env의 SITE_TITLE). 클릭 시 홈</td></tr>
+<tr><td><strong>프로그램 탭</strong></td><td>열린 프로그램 목록. 클릭으로 전환, ✕로 닫기. 다중 탭 지원</td></tr>
+<tr><td><strong>사용자 이름</strong></td><td>로그인 사용자. 클릭 시 설정 패널 열림</td></tr>
+<tr><td><strong>설정 ⚙</strong></td><td>다크/라이트 모드, PC/모바일 전환, 개발자 모드, 보기 설정 통합 패널</td></tr>
+</table>
+
+<h2>사이드바(Sidebar) 상세</h2>
+<div class="ui-diagram" style="border-radius:8px;max-width:200px">
+    <div class="ui-d-sidebar" style="width:100%;border-right:none;padding:10px 0">
+        <div class="item" style="color:#4a9be8;font-weight:700;padding:8px 14px;font-size:13px">▾ 영업관리</div>
+        <div class="item active" style="padding:6px 14px 6px 24px;font-size:12px">거래처관리</div>
+        <div class="item" style="padding:6px 14px 6px 24px;font-size:12px">매출현황</div>
+        <div class="item" style="padding:6px 14px 6px 24px;font-size:12px">계약관리</div>
+        <div class="item" style="color:#4a9be8;font-weight:700;padding:8px 14px;font-size:13px;margin-top:6px">▸ 재고관리</div>
+        <div class="item" style="color:#4a9be8;font-weight:700;padding:8px 14px;font-size:13px">▸ 인사관리</div>
+    </div>
+</div>
+<ul>
+<li><strong>1레벨 (카테고리)</strong> — 펼침/접힘 가능한 메뉴 그룹. ▾/▸ 토글</li>
+<li><strong>2레벨 (프로그램)</strong> — 실제 프로그램 링크. 클릭 시 탭으로 열림</li>
+<li><strong>접힘 모드</strong> — 아이콘만 표시 (56px), 마우스 오버 시 메뉴명 팝업</li>
+<li><strong>즐겨찾기 ★</strong> — 자주 쓰는 메뉴를 상단에 고정</li>
+</ul>
+
+<h2>그리드(DataGrid) 상세</h2>
+<div class="ui-diagram" style="border-radius:8px">
+    <div class="ui-d-toolbar" style="height:32px;padding:0 12px;gap:8px">
+        <div class="label" style="font-size:10px">상태:</div>
+        <div class="filter" style="width:70px;height:20px;font-size:10px;display:flex;align-items:center;padding:0 6px;color:var(--text-2)">전체 ▾</div>
+        <div class="label" style="font-size:10px">지역:</div>
+        <div class="filter" style="width:70px;height:20px;font-size:10px;display:flex;align-items:center;padding:0 6px;color:var(--text-2)">전체 ▾</div>
+        <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <div style="font-size:10px;color:var(--text-3)">총 127건</div>
+            <div class="btn-sm" style="font-size:9px;padding:2px 6px">엑셀</div>
+            <div class="btn-sm btn-accent" style="font-size:9px;padding:2px 6px">신규</div>
+        </div>
+    </div>
+    <table class="ui-d-table" style="font-size:11px">
+        <tr>
+            <th style="width:35px">No</th>
+            <th style="cursor:pointer">거래처명 ▲</th>
+            <th>대표자</th>
+            <th>전화번호</th>
+            <th>상태</th>
+        </tr>
+        <tr style="background:#f0f6ff"><td>1</td><td class="link"><strong>삼성전자</strong></td><td>이재용</td><td>02-1234-5678</td><td><span style="background:#E6F9F0;color:#03B26C;padding:1px 6px;border-radius:10px;font-size:10px">거래중</span></td></tr>
+        <tr><td>2</td><td class="link">LG전자</td><td>구광모</td><td>02-9876-5432</td><td><span style="background:#E6F9F0;color:#03B26C;padding:1px 6px;border-radius:10px;font-size:10px">거래중</span></td></tr>
+        <tr><td>3</td><td class="link">현대모비스</td><td>정의선</td><td>031-123-4567</td><td><span style="background:#FFF7E6;color:#F59E0B;padding:1px 6px;border-radius:10px;font-size:10px">보류</span></td></tr>
+    </table>
+    <div class="ui-d-pager" style="height:30px">
+        <span>◀ 이전</span>
+        <div class="pg active">1</div>
+        <div class="pg">2</div>
+        <div class="pg">3</div>
+        <div class="pg">4</div>
+        <div class="pg">5</div>
+        <span>다음 ▶</span>
+    </div>
+</div>
+<table>
+<tr><th style="width:140px">요소</th><th>설명</th></tr>
+<tr><td><strong>필터(Toolbar)</strong></td><td>필드 타입이 <code>selectbox</code>인 컬럼은 자동으로 필터 드롭다운 생성</td></tr>
+<tr><td><strong>컬럼 헤더</strong></td><td>클릭으로 정렬 토글 (▲오름/▼내림). Shift+클릭으로 복수 정렬</td></tr>
+<tr><td><strong>데이터 행</strong></td><td>클릭 시 우측 패널에 상세 표시. 선택 행은 파란 배경으로 강조</td></tr>
+<tr><td><strong>뱃지</strong></td><td><code>selectbox</code> 값은 자동으로 컬러 뱃지로 렌더링</td></tr>
+<tr><td><strong>페이저</strong></td><td>하단 페이지 네비게이션. 기본 50건, <code>pageSize</code>로 변경 가능</td></tr>
+</table>
+
+<h2>패널(Panel / DataForm) 상세</h2>
+<div class="ui-diagram" style="border-radius:8px;max-width:300px">
+    <div class="ui-d-panel" style="width:100%">
+        <div class="ui-d-panel-header" style="height:32px;padding:0 10px">
+            <div class="ptab active" style="font-size:11px">기본정보</div>
+            <div class="ptab" style="font-size:11px">매출내역</div>
+            <div class="ptab" style="font-size:11px">계약</div>
+            <div class="sizes" style="gap:3px">
+                <div class="size" style="width:18px;height:18px;font-size:9px">1</div>
+                <div class="size active" style="width:18px;height:18px;font-size:9px">2</div>
+                <div class="size" style="width:18px;height:18px;font-size:9px">3</div>
+                <div class="size" style="width:18px;height:18px;font-size:9px">4</div>
+            </div>
+        </div>
+        <div class="ui-d-form" style="padding:10px">
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">거래처명</div><div class="ui-d-form-value"><strong>삼성전자</strong></div></div>
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">사업자번호</div><div class="ui-d-form-value">124-81-00998</div></div>
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">대표자</div><div class="ui-d-form-value">이재용</div></div>
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">전화</div><div class="ui-d-form-value">02-1234-5678</div></div>
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">업태/종목</div><div class="ui-d-form-value">제조업 / 전자부품</div></div>
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">주소</div><div class="ui-d-form-value">서울 서초구 강남대로 129</div></div>
+            <div class="ui-d-form-row"><div class="ui-d-form-label" style="width:70px">메모</div><div class="ui-d-form-value" style="min-height:40px">주요 거래처. VIP 관리 대상</div></div>
+            <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end">
+                <div class="btn-sm" style="font-size:10px;color:#F04452">삭제</div>
+                <div class="btn-sm" style="font-size:10px">⋯</div>
+                <div class="btn-sm btn-accent" style="font-size:10px">저장</div>
+            </div>
+        </div>
+    </div>
+</div>
+<table>
+<tr><th style="width:140px">요소</th><th>설명</th></tr>
+<tr><td><strong>탭 헤더</strong></td><td>첫 번째 탭 = 현재 프로그램 폼, 나머지 = 자식 프로그램 (마스터-디테일)</td></tr>
+<tr><td><strong>크기 조절 (1~4)</strong></td><td>1=최소(폼만), 2=기본(그리드+패널), 3=넓은 패널, 4=전체화면</td></tr>
+<tr><td><strong>폼 필드</strong></td><td>왼쪽 라벨 + 오른쪽 값. 수정 모드에서 입력 가능한 필드가 활성화</td></tr>
+<tr><td><strong>섹션 타이틀</strong></td><td>필드 제목에 콜론(:)이 포함되면 전체 너비 구분선으로 표시</td></tr>
+<tr><td><strong>⋯ 더보기</strong></td><td>인쇄, 이력보기, 공유 등 확장 메뉴</td></tr>
+<tr><td><strong>저장/삭제 버튼</strong></td><td>저장 시 스피너 표시 → 성공/실패 토스트 알림</td></tr>
+</table>
+
+<h2>모바일 화면 구성</h2>
+<p>모바일 모드에서는 토스(Toss) 앱 감성의 카드형 UI로 자동 전환됩니다.</p>
+<div class="ui-diagram" style="border-radius:16px;max-width:280px;margin:24px auto;border:3px solid #333;background:#fff">
+    <!-- 모바일 상단바 -->
+    <div style="height:44px;background:#fff;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--border)">
+        <div style="font-size:10px;cursor:pointer">☰</div>
+        <div style="flex:1;text-align:center;font-size:13px;font-weight:700">거래처관리</div>
+        <div style="font-size:10px">⚙</div>
+    </div>
+    <!-- 모바일 검색 -->
+    <div style="padding:8px 12px">
+        <div style="background:var(--bg-2);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text-3)">🔍 검색어 입력...</div>
+    </div>
+    <!-- 모바일 카드 리스트 -->
+    <div style="padding:0 12px 8px">
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:13px;font-weight:700">삼성전자</div>
+                <span style="background:#E6F9F0;color:#03B26C;padding:1px 8px;border-radius:10px;font-size:10px">거래중</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-2);line-height:1.6">대표: 이재용<br>전화: 02-1234-5678</div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:13px;font-weight:700">LG전자</div>
+                <span style="background:#E6F9F0;color:#03B26C;padding:1px 8px;border-radius:10px;font-size:10px">거래중</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-2);line-height:1.6">대표: 구광모<br>전화: 02-9876-5432</div>
+        </div>
+    </div>
+    <!-- 모바일 하단 탭바 -->
+    <div style="height:44px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;background:#fff">
+        <div style="text-align:center;font-size:9px;color:#4F6EF7"><div style="font-size:14px">📋</div>거래처</div>
+        <div style="text-align:center;font-size:9px;color:var(--text-3)"><div style="font-size:14px">📊</div>매출</div>
+        <div style="text-align:center;font-size:9px;color:var(--text-3)"><div style="font-size:14px">📦</div>재고</div>
+        <div style="text-align:center;font-size:9px;color:var(--text-3)"><div style="font-size:14px">⚙</div>설정</div>
+    </div>
+</div>
+<table>
+<tr><th style="width:140px">영역</th><th>설명</th></tr>
+<tr><td><strong>상단바</strong></td><td>햄버거(☰) 메뉴, 프로그램명, 설정. 사이드바 드로어로 열림</td></tr>
+<tr><td><strong>검색</strong></td><td>상단 검색바. 필터 드롭다운은 아래 시트로 표시</td></tr>
+<tr><td><strong>카드 리스트</strong></td><td>데스크톱 그리드 대신 카드형 레이아웃. 주요 필드만 표시</td></tr>
+<tr><td><strong>하단 탭바</strong></td><td>2레벨 메뉴를 하단 탭으로 표시. 3레벨은 목록으로 전환</td></tr>
+</table>
+
+<h2>설정(Settings) 패널</h2>
+<p>탑바 우측 ⚙ 버튼을 클릭하면 통합 설정 패널이 열립니다.</p>
+<div class="ui-diagram" style="border-radius:8px;max-width:260px;background:#fff;border:1px solid var(--border)">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">설정</div>
+    <div style="padding:12px 16px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="color:var(--text-2)">테마</span>
+            <div style="display:flex;gap:2px;background:var(--bg-2);border-radius:6px;padding:2px">
+                <span style="padding:3px 10px;background:#fff;border-radius:4px;font-size:11px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.1)">☀ 라이트</span>
+                <span style="padding:3px 10px;font-size:11px;color:var(--text-3)">🌙 다크</span>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="color:var(--text-2)">모드</span>
+            <div style="display:flex;gap:2px;background:var(--bg-2);border-radius:6px;padding:2px">
+                <span style="padding:3px 10px;background:#fff;border-radius:4px;font-size:11px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.1)">🖥 PC</span>
+                <span style="padding:3px 10px;font-size:11px;color:var(--text-3)">📱 모바일</span>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="color:var(--text-2)">개발자 모드</span>
+            <div style="width:36px;height:20px;background:var(--border);border-radius:10px;position:relative">
+                <div style="width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;box-shadow:0 1px 2px rgba(0,0,0,0.2)"></div>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="color:var(--text-2)">목록 보기</span>
+            <div style="display:flex;gap:2px;background:var(--bg-2);border-radius:6px;padding:2px">
+                <span style="padding:3px 10px;background:#fff;border-radius:4px;font-size:11px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,0.1)">기본</span>
+                <span style="padding:3px 10px;font-size:11px;color:var(--text-3)">카드</span>
+            </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+            <div style="font-size:11px;color:#F04452;cursor:pointer">로그아웃</div>
+        </div>
+    </div>
+</div>
+
+<div class="callout callout-info">
+    <div class="callout-icon">💡</div>
+    <div>설정은 서버에 저장되어 다른 기기에서 로그인해도 동일한 환경이 유지됩니다. 개발자 모드는 관리자만 활성화할 수 있습니다.</div>
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 설치 가이드 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-install">
+<h1>설치 가이드</h1>
+
+<h2>요구사항</h2>
+<ul>
+<li>PHP 8.3 이상 (mbstring, pdo_mysql, json 확장)</li>
+<li>MariaDB 10.11 / MySQL 8.0 이상</li>
+<li>Node.js 18+ (빌드 전용, 서버 불필요)</li>
+<li>웹서버: Nginx 또는 IIS</li>
+</ul>
+
+<h2>Windows (IIS)</h2>
+<pre><code>1. 소스를 C:\_webdir\speedmis_v7\ 에 복사
+2. composer install
+3. npm install && npm run build
+4. .env.example → .env 복사 후 DB 정보 입력
+5. IIS에서 사이트 추가 → 물리 경로 지정 → 포트 설정</code></pre>
+
+<h2>Linux (Nginx)</h2>
+<pre><code># PHP + 확장 설치
+sudo apt install php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml
+
+# Composer 설치
+curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/local/bin/composer
+
+# 프로젝트 설정
+cd /var/www/speedmis_v7
+composer install --no-dev
+cp .env.example .env    # DB 정보 수정
+
+# Nginx 설정 후
+sudo nginx -t && sudo systemctl reload nginx</code></pre>
+
+<h2>.env 설정</h2>
+<pre><code>DB_HOST=127.0.0.1
+DB_NAME=speedmis_v7
+DB_USER=admin
+DB_PASS=your_password
+APP_URL=http://yourdomain.com
+APP_PWD_KEY=your_jwt_secret
+SITE_TITLE="우리회사 MIS"</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 빠른 시작 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-quickstart">
+<h1>빠른 시작 — 5분 만에 프로그램 만들기</h1>
+
+<h2>1단계: 메뉴 등록</h2>
+<p>웹소스관리(프로그램 314)에서 새 메뉴를 등록합니다.</p>
+<table>
+<tr><th>항목</th><th>값</th><th>설명</th></tr>
+<tr><td>메뉴명</td><td>고객관리</td><td>좌측 메뉴에 표시</td></tr>
+<tr><td>기준테이블</td><td>my_customers</td><td>DB 테이블명</td></tr>
+<tr><td>메뉴타입</td><td>01</td><td>일반 프로그램</td></tr>
+</table>
+
+<h2>2단계: 필드 정의</h2>
+<p>웹소스관리 디테일(프로그램 267)에서 필드를 추가합니다.</p>
+<table>
+<tr><th>번호</th><th>항목명</th><th>필드명</th><th>표시폭</th></tr>
+<tr><td>1</td><td>idx</td><td>idx</td><td>0 (숨김)</td></tr>
+<tr><td>2</td><td>고객명</td><td>name</td><td>20</td></tr>
+<tr><td>3</td><td>전화번호</td><td>phone</td><td>15</td></tr>
+<tr><td>4</td><td>이메일</td><td>email</td><td>25</td></tr>
+<tr><td>5</td><td>메모</td><td>remark</td><td>30</td></tr>
+</table>
+
+<h2>3단계: 즉시 사용</h2>
+<p>메뉴를 클릭하면 목록, 등록, 수정, 삭제 화면이 자동으로 생성됩니다. 별도 배포가 필요 없습니다.</p>
+
+<div class="callout callout-info">
+<span class="callout-icon">💡</span>
+<div>DB 테이블이 없으면 먼저 CREATE TABLE로 생성해야 합니다. SpeedMIS는 테이블을 자동 생성하지 않습니다.</div>
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 서버 훅 시스템 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-hooks">
+<h1>서버 훅 시스템</h1>
+<p>훅은 <code>programs/{real_pid}.php</code> 파일에 정의합니다. DataHandler가 각 이벤트 시점에 자동으로 호출합니다.</p>
+
+<h2>훅 실행 순서</h2>
+<pre><code>common_훅()  →  user_훅()  →  개별_훅()
+
+_common.php         → SpeedMIS 기본 공통
+_common_udef.php → 고객사 전용 공통
+{real_pid}.php      → 프로그램별 개별</code></pre>
+
+<h2>전체 훅 목록</h2>
+<table>
+<tr><th>훅</th><th>시점</th><th>파라미터</th></tr>
+<tr><td><code>pageLoad()</code></td><td>프로그램 로드 1회</td><td>없음</td></tr>
+<tr><td><code>before_query($menu, $fields, $params)</code></td><td>쿼리 빌드 전</td><td>메뉴, 필드, 파라미터</td></tr>
+<tr><td><code>list_query(&$select, &$count)</code></td><td>목록 쿼리 생성 후</td><td>SELECT/COUNT SQL (수정 가능)</td></tr>
+<tr><td><code>list_json_init()</code></td><td>목록 로딩 전</td><td>없음</td></tr>
+<tr><td><code>list_json_load(&$data)</code></td><td>목록 각 행</td><td>행 데이터 (수정 가능)</td></tr>
+<tr><td><code>view_query(&$viewSql)</code></td><td>단건 조회 쿼리 후</td><td>SELECT SQL (수정 가능)</td></tr>
+<tr><td><code>view_load(&$row)</code></td><td>단건 조회 후</td><td>레코드 (수정 가능)</td></tr>
+<tr><td><code>save_updateReady(&$saveList)</code></td><td>저장 전 검증</td><td>POST 원본 데이터</td></tr>
+<tr><td><code>save_updateBefore(&$updateList)</code></td><td>UPDATE 직전</td><td>DB 컬럼 데이터</td></tr>
+<tr><td><code>save_updateQueryBefore(&$sql, &$bindings)</code></td><td>UPDATE SQL 직전</td><td>SQL + 바인딩</td></tr>
+<tr><td><code>save_updateAfter($idx, &$afterScript)</code></td><td>UPDATE 완료 후</td><td>레코드 idx</td></tr>
+<tr><td><code>save_writeBefore(&$updateList)</code></td><td>INSERT 직전</td><td>DB 컬럼 데이터</td></tr>
+<tr><td><code>save_writeQueryBefore(&$sql, &$bindings)</code></td><td>INSERT SQL 직전</td><td>SQL + 바인딩</td></tr>
+<tr><td><code>save_writeAfter($newIdx, &$afterScript)</code></td><td>INSERT 완료 후</td><td>새 레코드 idx</td></tr>
+<tr><td><code>save_deleteBefore($idx, &$cancelDelete)</code></td><td>삭제 전 검증</td><td>idx, 취소 플래그</td></tr>
+<tr><td><code>save_deleteAfter($idx, &$afterScript)</code></td><td>삭제 완료 후</td><td>idx</td></tr>
+<tr><td><code>addLogic_treat(&$result)</code></td><td>커스텀 API</td><td>결과 배열</td></tr>
+</table>
+
+<h2>예제: 저장 전 확인</h2>
+<pre><code>function save_updateReady(&$saveList) {
+    global $isListEdit, $idx;
+
+    if ((int)$saveList['amount'] > 1000000) {
+        $GLOBALS['_client_confirm'] = '100만원 이상입니다. 저장할까요?';
+    }
+}</code></pre>
+
+<h2>예제: 저장 후 연관 데이터 처리</h2>
+<pre><code>function save_updateAfter($idx, &$afterScript) {
+    global $__pdo, $misSessionUserId;
+
+    execSql("INSERT INTO change_log (ref_idx, user_id, wdate)
+             VALUES ({$idx}, '{$misSessionUserId}', NOW())");
+
+    $GLOBALS['_client_toast'] = '저장 완료 + 로그 기록됨';
+}</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 전역변수 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-globals">
+<h1>전역변수 레퍼런스</h1>
+<p>훅 함수 내에서 <code>global</code> 선언 후 사용할 수 있는 변수입니다.</p>
+
+<h2>세션/요청 정보</h2>
+<table>
+<tr><th>변수</th><th>타입</th><th>설명</th></tr>
+<tr><td><code>$actionFlag</code></td><td>string</td><td>현재 액션 (list/view/modify/write/delete)</td></tr>
+<tr><td><code>$gubun</code></td><td>int</td><td>메뉴 idx</td></tr>
+<tr><td><code>$idx</code></td><td>int</td><td>레코드 idx</td></tr>
+<tr><td><code>$real_pid</code></td><td>string</td><td>프로그램 ID (speedmis000036 형태)</td></tr>
+<tr><td><code>$menu_name</code></td><td>string</td><td>프로그램명</td></tr>
+<tr><td><code>$parent_idx</code></td><td>int</td><td>마스터-디테일 상위 idx</td></tr>
+<tr><td><code>$misSessionUserId</code></td><td>string</td><td>로그인 사용자 ID</td></tr>
+<tr><td><code>$misSessionIsAdmin</code></td><td>string</td><td>관리자 여부 ('Y' 또는 '')</td></tr>
+<tr><td><code>$misSessionPositionCode</code></td><td>string</td><td>직급 코드</td></tr>
+<tr><td><code>$isFirstLoad</code></td><td>bool</td><td>프로그램 최초 로딩 여부</td></tr>
+<tr><td><code>$isListEdit</code></td><td>bool</td><td>목록편집(인라인) 저장 여부</td></tr>
+<tr><td><code>$listEditField</code></td><td>array</td><td>목록편집 시 변경된 필드명 배열</td></tr>
+<tr><td><code>$customAction</code></td><td>string</td><td>사용자 정의 버튼 action 값</td></tr>
+<tr><td><code>$__pdo</code></td><td>PDO</td><td>DB 인스턴스</td></tr>
+</table>
+
+<h2>클라이언트 제어 ($GLOBALS[...])</h2>
+<table>
+<tr><th>키</th><th>값</th><th>효과</th></tr>
+<tr><td><code>_client_alert</code></td><td>string</td><td>alert() 팝업</td></tr>
+<tr><td><code>_client_toast</code></td><td>string</td><td>토스트 알림</td></tr>
+<tr><td><code>_client_confirm</code></td><td>string</td><td>저장 전 확인 (Yes→저장, No→취소)</td></tr>
+<tr><td><code>_client_openTab</code></td><td>array</td><td>새 탭 열기 {gubun, label, idx, openFull}</td></tr>
+<tr><td><code>_client_redirect</code></td><td>array</td><td>현재 탭 교체 {gubun, label}</td></tr>
+<tr><td><code>_client_css</code></td><td>string</td><td>CSS 주입</td></tr>
+<tr><td><code>_client_buttonText</code></td><td>array</td><td>버튼 텍스트 변경 {write, reset}</td></tr>
+<tr><td><code>_client_buttons</code></td><td>array</td><td>리스트 헤더 커스텀 버튼 [{label, action}]</td></tr>
+<tr><td><code>_client_formButtons</code></td><td>array</td><td>우측 폼 상단 버튼 [{label, realPid|gubun, idx, openFull}] — <code>view_load</code>에서 설정</td></tr>
+<tr><td><code>_client_fields</code></td><td>array</td><td>필드 속성 오버라이드</td></tr>
+<tr><td><code>_client_viewPref</code></td><td>string</td><td>조회설정 (list/auto)</td></tr>
+<tr><td><code>_onlyList</code></td><td>bool</td><td>리스트전용 모드</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 클라이언트 제어 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-client">
+<h1>클라이언트 제어</h1>
+
+<h2>버튼 텍스트 변경</h2>
+<pre><code>function pageLoad() {
+    $GLOBALS['_client_buttonText'] = [
+        'write' => '접수하기',    // +등록 → 접수하기
+        'reset' => '전체보기',    // 초기화 → 전체보기
+    ];
+}</code></pre>
+
+<h2>사용자 정의 버튼</h2>
+<pre><code>function pageLoad() {
+    $GLOBALS['_client_buttons'] = [
+        ['label' => '일괄적용', 'action' => 'apply'],
+        ['label' => '마감처리', 'action' => 'close'],
+    ];
+}
+
+function list_json_init() {
+    global $customAction;
+    if ($customAction === 'apply') {
+        execSql("UPDATE my_table SET status='적용' WHERE status='대기'");
+        $GLOBALS['_client_toast'] = '일괄 적용 완료!';
+    }
+}</code></pre>
+
+<h2>CSS 주입</h2>
+<pre><code>function pageLoad() {
+    $GLOBALS['_client_css'] = '
+        #mis-btn-write { display: none; }
+        #mis-btn-reset { background: #3182F6; color: #fff; }
+    ';
+}
+
+// 주요 CSS ID:
+// #mis-program, #mis-header, #mis-title
+// #mis-btn-write, #mis-btn-reset, #mis-btn-custom-0</code></pre>
+
+<h2>그리드 셀 버튼 (openTabBtn)</h2>
+<pre><code>function list_json_load(&$data) {
+    $data['__html']['gname'] = $data['gname']
+        . openTabBtn('상세', [
+            'real_pid' => 'speedmis000314',
+            'idx'      => $data['idx'],
+        ]);
+}
+
+// 버튼 스타일: btn-open(파랑), btn-danger(빨강), btn-success(초록), btn-sm(작게)</code></pre>
+
+<h2>우측 폼 상단 버튼 (_client_formButtons)</h2>
+<p><code>view_load</code> 훅에서 설정. 리스트의 <code>data-opentab</code>과 동일한 전역 위임을 사용해 클릭 시 탭이 열립니다.</p>
+<pre><code>function view_load(&amp;$row) {
+    $rp = $row['real_pid'] ?? '';
+    if ($rp) {
+        $GLOBALS['_client_formButtons'] = [
+            ['label' =&gt; '연결', 'realPid' =&gt; $rp, 'openFull' =&gt; true],
+            ['label' =&gt; '히스토리', 'gubun' =&gt; 42, 'idx' =&gt; $row['idx']],
+        ];
+    }
+}</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 필드 속성 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-fields">
+<h1>필드 속성 커스텀</h1>
+<p><code>$GLOBALS['_client_fields']</code>로 런타임에 필드 속성을 동적 변경합니다.</p>
+
+<pre><code>function pageLoad() {
+    global $misSessionUserId;
+
+    $GLOBALS['_client_fields'] = [
+        'remark' => [
+            'col_title'     => '비고',           // 항목명 변경
+            'col_width'     => 30,              // 표시폭
+            'max_length'    => 200,             // 입력글수
+            'required'      => 'Y',            // 필수입력
+            'items'         => '옵션1,옵션2',    // 셀렉트박스
+            'grid_list_edit'=> 'Y',            // 목록편집
+        ],
+    ];
+}</code></pre>
+
+<h2>변경 가능한 속성</h2>
+<table>
+<tr><th>키</th><th>설명</th></tr>
+<tr><td><code>col_title</code></td><td>항목명 (그리드 헤더 + 폼 레이블)</td></tr>
+<tr><td><code>col_width</code></td><td>그리드 표시폭</td></tr>
+<tr><td><code>max_length</code></td><td>입력 최대 글수</td></tr>
+<tr><td><code>default_value</code></td><td>등록 시 기본값</td></tr>
+<tr><td><code>required</code></td><td>필수입력 (Y/N)</td></tr>
+<tr><td><code>schema_type</code></td><td>데이터타입</td></tr>
+<tr><td><code>items</code></td><td>셀렉트박스 목록</td></tr>
+<tr><td><code>form_group</code></td><td>폼 탭그룹명</td></tr>
+<tr><td><code>grid_list_edit</code></td><td>목록편집 (Y/N)</td></tr>
+<tr><td><code>grid_ctl_name</code></td><td>객체명 (check/dropdownlist 등)</td></tr>
+<tr><td><code>grid_is_handle</code></td><td>필터 (s=셀렉트, t=텍스트)</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 목록 HTML -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-listhtml">
+<h1>목록 HTML 렌더링 (__html)</h1>
+<p>그리드 셀에 HTML을 렌더링합니다. 원본 데이터는 보존됩니다.</p>
+
+<pre><code>function list_json_load(&$data) {
+    // 링크
+    $data['__html']['site'] = '&lt;a href="'.$data['url'].'" target="_blank"&gt;'.$data['site'].'&lt;/a&gt;';
+
+    // 상태 뱃지
+    $st = $data['status'];
+    $color = $st === '완료' ? '#22c55e' : '#ef4444';
+    $data['__html']['status'] = '&lt;span class="badge" style="background:'.$color.';color:#fff"&gt;'.$st.'&lt;/span&gt;';
+
+    // 조건부 버튼
+    $data['__html']['action'] = openTabBtn('처리', [
+        'real_pid' => 'speedmis000100',
+        'idx' => $data['idx'],
+        'class' => 'btn-danger btn-sm',
+    ]);
+}</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 인쇄양식 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-print">
+<h1>인쇄양식 템플릿</h1>
+
+<h2>설정</h2>
+<ol>
+<li><code>mis_menus.is_use_print = 1</code> 체크</li>
+<li><code>programs/{real_pid}_print.html</code> 파일 작성</li>
+</ol>
+
+<h2>문법</h2>
+<table>
+<tr><th>문법</th><th>설명</th></tr>
+<tr><td><code>{{alias_name}}</code></td><td>메인 레코드 필드값</td></tr>
+<tr><td><code>{{#each childAlias}}...{{/each}}</code></td><td>자식 프로그램 루프</td></tr>
+<tr><td><code>{{@index}}</code></td><td>루프 인덱스 (1부터)</td></tr>
+<tr><td><code>{{@total}}</code></td><td>자식 전체 건수</td></tr>
+</table>
+
+<h2>예제</h2>
+<pre><code>&lt;h2&gt;{{gname}} 그룹 상세&lt;/h2&gt;
+&lt;table&gt;
+  &lt;tr&gt;&lt;th&gt;그룹명&lt;/th&gt;&lt;td&gt;{{gname}}&lt;/td&gt;&lt;/tr&gt;
+  &lt;tr&gt;&lt;th&gt;메모&lt;/th&gt;&lt;td&gt;{{remark}}&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;h3&gt;멤버 목록&lt;/h3&gt;
+&lt;table&gt;
+  {{#each zmembeohwagin}}
+  &lt;tr&gt;
+    &lt;td&gt;{{@index}}&lt;/td&gt;
+    &lt;td&gt;{{user_id}}&lt;/td&gt;
+  &lt;/tr&gt;
+  {{/each}}
+&lt;/table&gt;</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- execSql -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-execsql">
+<h1>SQL 실행 헬퍼</h1>
+
+<pre><code>// 단일 쿼리 (바인딩)
+$result = execSql("INSERT INTO t (name) VALUES (?)", ['홍길동']);
+
+// 멀티 쿼리 (세미콜론 구분)
+$result = execSql("
+    UPDATE a SET status='done' WHERE idx=1;
+    INSERT INTO b (ref) VALUES (1)
+");
+
+// 결과
+// $result['resultCode']    — 'success' 또는 'fail'
+// $result['resultMessage'] — 에러 메시지
+// $result['lastInsertId']  — 마지막 INSERT idx
+// $result['rowCount']      — 영향받은 행 수</code></pre>
+
+<div class="callout callout-info">
+<span class="callout-icon">💡</span>
+<div>개발자모드에서 execSql 실행 내역은 SQL 모달에 자동 표시됩니다.</div>
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 공통 로직 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-common">
+<h1>공통 / 사용자 로직</h1>
+
+<h2>파일 구조</h2>
+<table>
+<tr><th>파일</th><th>접두어</th><th>업데이트 시</th><th>용도</th></tr>
+<tr><td><code>_common.php</code></td><td><code>common_</code></td><td>덮어씀</td><td>SpeedMIS 기본</td></tr>
+<tr><td><code>_common_udef.php</code></td><td><code>user_</code></td><td>보존</td><td>고객사 전용</td></tr>
+<tr><td><code>{real_pid}.php</code></td><td>(없음)</td><td>보존</td><td>프로그램별</td></tr>
+</table>
+
+<h2>실행 순서</h2>
+<pre><code>common_save_updateAfter()  →  user_save_updateAfter()  →  save_updateAfter()</code></pre>
+
+<h2>일반 헬퍼 함수</h2>
+<pre><code>// _common_udef.php
+function getUserName($userId) {
+    global $__pdo;
+    return $__pdo->query("SELECT user_name FROM mis_users
+        WHERE user_id='{$userId}'")->fetchColumn() ?: '';
+}
+
+// 개별 프로그램에서 바로 사용
+function save_updateAfter($idx, &$afterScript) {
+    $name = getUserName($GLOBALS['misSessionUserId']);
+    $GLOBALS['_client_toast'] = "{$name}님이 수정";
+}</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- API -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-dev-api">
+<h1>API 레퍼런스</h1>
+<p>모든 API는 <code>/api.php?act=</code> 방식입니다.</p>
+
+<table>
+<tr><th>act</th><th>Method</th><th>설명</th></tr>
+<tr><td><code>list</code></td><td>GET</td><td>목록 조회</td></tr>
+<tr><td><code>view</code></td><td>GET</td><td>단건 조회</td></tr>
+<tr><td><code>save</code></td><td>POST</td><td>등록/수정 (CSRF 필수)</td></tr>
+<tr><td><code>delete</code></td><td>POST</td><td>삭제 (CSRF 필수)</td></tr>
+<tr><td><code>menu</code></td><td>GET</td><td>메뉴 트리</td></tr>
+<tr><td><code>menuItem</code></td><td>GET</td><td>메뉴 단건</td></tr>
+<tr><td><code>login</code></td><td>POST</td><td>로그인</td></tr>
+<tr><td><code>logout</code></td><td>POST</td><td>로그아웃</td></tr>
+<tr><td><code>me</code></td><td>GET</td><td>현재 사용자</td></tr>
+<tr><td><code>treat</code></td><td>POST</td><td>커스텀 API 훅</td></tr>
+<tr><td><code>briefInsert</code></td><td>POST</td><td>간편추가</td></tr>
+<tr><td><code>fileUpload</code></td><td>POST</td><td>파일 업로드</td></tr>
+<tr><td><code>fileDown</code></td><td>GET</td><td>파일 다운로드</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 관리자: 메뉴 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-admin-menu">
+<h1>메뉴 관리</h1>
+<p>프로그램 314번(웹소스관리)에서 메뉴를 등록/수정합니다.</p>
+
+<h2>주요 필드</h2>
+<table>
+<tr><th>필드</th><th>설명</th><th>예시</th></tr>
+<tr><td>menu_name</td><td>메뉴명</td><td>고객관리</td></tr>
+<tr><td>table_name</td><td>기준 테이블</td><td>my_customers</td></tr>
+<tr><td>menu_type</td><td>메뉴 타입</td><td>01(일반), 13(iframe)</td></tr>
+<tr><td>auth_code</td><td>권한 코드</td><td>01(전체), 02(멤버만)</td></tr>
+<tr><td>g01</td><td>프로그램 모드</td><td>simple_list, only_one_list, gantt</td></tr>
+<tr><td>g07</td><td>읽기전용</td><td>Y</td></tr>
+<tr><td>base_filter</td><td>기본 WHERE 조건</td><td>table_m.use_yn='1'</td></tr>
+<tr><td>brief_insert_sql</td><td>간편추가 SQL</td><td>(name, wdater) values ('', '@misSessionUserId')</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 관리자: 필드 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-admin-field">
+<h1>필드 관리</h1>
+<p>프로그램 267번(웹소스관리 디테일)에서 필드를 관리합니다.</p>
+
+<h2>col_width 규칙</h2>
+<table>
+<tr><th>값</th><th>의미</th></tr>
+<tr><td>양수 (예: 20)</td><td>그리드에 표시 (폭 = 값 × 8px)</td></tr>
+<tr><td>0</td><td>그리드 숨김, 폼에만 표시</td></tr>
+<tr><td>-1</td><td>숨김 PK (첫 번째 visible 필드가 링크)</td></tr>
+<tr><td>-2</td><td>완전 숨김</td></tr>
+</table>
+
+<h2>grid_ctl_name 객체명</h2>
+<table>
+<tr><th>값</th><th>설명</th></tr>
+<tr><td>text</td><td>텍스트 입력</td></tr>
+<tr><td>check</td><td>체크박스</td></tr>
+<tr><td>dropdownlist</td><td>드롭다운 (prime_key 연동)</td></tr>
+<tr><td>attach</td><td>파일 첨부</td></tr>
+<tr><td>child</td><td>자식 프로그램 탭</td></tr>
+<tr><td>datepicker</td><td>날짜 선택</td></tr>
+</table>
+
+<h2>max_length (입력글수) 규칙</h2>
+<table>
+<tr><th>값 형식</th><th>일반 필드 동작</th><th>첨부/이미지 (attach/image)</th></tr>
+<tr><td>양수 (예: <code>50</code>)</td><td>등록·수정 모두 입력 가능 (최대 N자)</td><td>업로드 크기 제한 N MB</td></tr>
+<tr><td>음수 (예: <code>-14</code>)</td><td>등록 시만 abs(N)자 입력 가능 / 수정 시 읽기전용</td><td>해당 없음</td></tr>
+<tr><td><code>0</code></td><td>등록·수정 모두 읽기전용</td><td>해당 없음</td></tr>
+<tr><td>빈값</td><td>기본 200자, 등록·수정 모두 가능</td><td>기본 제한 없음</td></tr>
+<tr><td>끝이 <code>!</code> (예: <code>500!</code>)</td><td><strong>행 단위 readonly(rowReadOnly) 무시</strong> — 그 필드만 편집 허용</td><td>multi-attach (여러 파일 첨부 가능)</td></tr>
+</table>
+
+<div class="callout callout-info">
+<span class="callout-icon">💡</span>
+<div><strong>! suffix 의 의미</strong> — 일반 필드에선 "잎 노드만 삭제" 같은 row-level readonly 규칙(g04)이 걸려도 해당 필드만은 부분수정 가능. 첨부에선 멀티파일 허용. 두 의미가 다르므로 컨트롤 종류에 따라 자동 분기됩니다.</div>
+</div>
+
+<h3>예시: 트리 데이터의 부모 노드도 비고만 수정 허용</h3>
+<p>parts_cate_a 트리에서 자식 있는 부모는 <code>read_only_cond</code> 로 readonly 처리되어 일반 수정/삭제 차단. 그러나 비고(remark) 필드의 max_length 를 <code>500!</code> 로 두면:</p>
+<ul>
+<li>조회 화면에 <strong>[부분수정]</strong> 버튼 + <code>🔒 일부 필드만 수정 가능</code> 안내</li>
+<li>수정 모드 진입 시 비고만 편집, 다른 필드는 readonly</li>
+<li>저장 → 비고만 UPDATE, 그 외 변경은 BE 가 무시</li>
+</ul>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 관리자: 권한 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-admin-auth">
+<h1>권한 관리</h1>
+
+<h2>권한 코드 (auth_code)</h2>
+<table>
+<tr><th>코드</th><th>의미</th></tr>
+<tr><td>01 또는 빈값</td><td>전체 공개</td></tr>
+<tr><td>02</td><td>멤버만 접근 (mis_menu_auth 기반)</td></tr>
+</table>
+
+<h2>그룹 권한</h2>
+<p>mis_groups + mis_group_members 테이블로 관리. 프로그램별 new_gidx 필드로 그룹 지정.</p>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 관리자: 모드 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-admin-mode">
+<h1>프로그램 모드</h1>
+
+<table>
+<tr><th>g01</th><th>모드</th><th>동작</th></tr>
+<tr><td>(빈값)</td><td>일반</td><td>목록 + 등록/수정/삭제</td></tr>
+<tr><td>simple_list</td><td>심플 목록</td><td>목록 + 수정만 (등록/삭제 없음)</td></tr>
+<tr><td>only_one_list</td><td>단건</td><td>리스트 없이 최근 1건만 수정</td></tr>
+<tr><td>gantt</td><td>간트차트</td><td>그리드 대신 간트차트 전체화면</td></tr>
+</table>
+
+<h2>서버로직으로 모드 제어</h2>
+<pre><code>function pageLoad() {
+    $GLOBALS['_onlyList'] = true;        // 리스트전용
+    $GLOBALS['_client_viewPref'] = 'list'; // 내용 자동열림 비활성
+}</code></pre>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 관리자: 설정 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-admin-settings">
+<h1>설정</h1>
+<p>topbar 우측 ⚙ 아이콘에서 접근합니다.</p>
+
+<table>
+<tr><th>설정</th><th>저장 위치</th><th>설명</th></tr>
+<tr><td>PC / 모바일</td><td>localStorage</td><td>레이아웃 전환</td></tr>
+<tr><td>라이트 / 다크</td><td>localStorage + DB</td><td>테마</td></tr>
+<tr><td>실사용 / 개발자</td><td>localStorage</td><td>SQL 디버그 도구</td></tr>
+<tr><td>조회설정</td><td>localStorage</td><td>목록만 / 자동열림 / 개별</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 그리드 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-grid">
+<h1>그리드 사용법</h1>
+
+<h2>기본 조작</h2>
+<ul>
+<li><strong>행 클릭</strong> → 우측에 상세 내용 표시</li>
+<li><strong>Shift+클릭</strong> → 새 탭으로 열기</li>
+<li><strong>Ctrl+클릭</strong> → 새 창으로 열기</li>
+<li><strong>조회모드 👁</strong> → 클릭 시 조회</li>
+<li><strong>수정모드 ✏</strong> → 클릭 시 수정폼 열기</li>
+</ul>
+
+<h2>패널 크기</h2>
+<p>우측 <code>4 3 2 1</code> 버튼으로 조절:</p>
+<ul>
+<li><strong>4</strong> — 전체화면 (그리드 숨김)</li>
+<li><strong>3</strong> — 75%</li>
+<li><strong>2</strong> — 50%</li>
+<li><strong>1</strong> — 25%</li>
+</ul>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 폼 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-form">
+<h1>폼 사용법</h1>
+<ul>
+<li><strong>조회 모드</strong> → 데이터 확인만 가능</li>
+<li><strong>수정 버튼</strong> → 수정 모드 전환</li>
+<li><strong>저장 버튼</strong> → 데이터 저장</li>
+<li><strong>삭제 버튼</strong> → 확인 후 삭제</li>
+<li><strong>그룹 탭</strong> → 필드가 많으면 탭으로 분리</li>
+<li><strong>인쇄 🖨</strong> → 인쇄양식 있으면 표시</li>
+</ul>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 필터 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-filter">
+<h1>필터 & 검색</h1>
+<ul>
+<li><strong>툴바 필터</strong> — 상단의 셀렉트박스/텍스트 입력으로 필터링</li>
+<li><strong>컬럼 헤더 필터</strong> — 그리드 헤더 아래 행에서 직접 입력</li>
+<li><strong>최근순</strong> — 최근 등록순 정렬 토글</li>
+<li><strong>초기화</strong> — 모든 필터 + 정렬 초기화 (마스터-디테일의 자식 프로그램에도 지원)</li>
+<li><strong>컬럼 정렬</strong> — 헤더 클릭 (Ctrl+클릭: 다중 정렬)</li>
+<li><strong>간편추가</strong> — 1/2/3/5/10/50줄 옵션 (<code>mis_menus.brief_insert_sql</code> 설정 필요)</li>
+</ul>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 부분합/총합 (aggregate) -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-aggregate">
+<h1>부분합 / 총합 (aggregate)</h1>
+<p>URL 파라미터 <code>&amp;aggregate=</code> 로 목록에 부분합·총합 행을 자동 삽입합니다.</p>
+
+<h2>모드 4종</h2>
+<table>
+<tr><th>모드</th><th>동작</th></tr>
+<tr><td><code>aggregate=auto</code></td><td>실데이터 + 부분합/총합 (숫자 필드=합계, 그 외=건수)</td></tr>
+<tr><td><code>aggregate=sum</code></td><td>실데이터 + 부분합/총합 (숫자 필드만 합계, 나머지는 공란)</td></tr>
+<tr><td><code>aggregate=simple.auto</code></td><td>실데이터 숨김, 집계 행만 표시. 행 클릭 → 실데이터 팝업</td></tr>
+<tr><td><code>aggregate=simple.sum</code></td><td>실데이터 숨김, 숫자 합계만. 행 클릭 → 실데이터 팝업</td></tr>
+</table>
+
+<h2>규칙</h2>
+<ul>
+<li><code>orderby</code>의 alias 조합을 그룹 키로 사용 → 그룹이 바뀔 때 <strong>소계</strong> 행 삽입</li>
+<li><code>recently=Y</code>(최근순)이면 aggregate 무시</li>
+<li><strong>합계</strong>: <code>schema_type</code>이 <code>number</code>로 시작하는 필드. 굵은 글씨로 표시</li>
+<li><strong>건수</strong>: 그 외 필드. <strong>필드별로</strong> 값이 <code>null</code>/빈 문자열인 행은 제외하고 카운트. 이탤릭체로 표시</li>
+<li>우측 패널 자동 열기 비활성</li>
+<li><code>psize</code>/<code>pageSize</code> 미지정 시 기본 1000</li>
+<li>엑셀 다운로드에도 집계 행 포함 (No 칸=<code>소계</code>/<code>합계</code>). 숫자 필드는 Excel의 숫자 셀(bold), 건수 셀은 이탤릭으로 출력</li>
+</ul>
+
+<h2>예시</h2>
+<pre><code>/?gubun=36&amp;orderby=dept,position&amp;aggregate=auto
+/?gubun=36&amp;orderby=dept&amp;aggregate=simple.sum</code></pre>
+<p><code>dept, position</code>으로 정렬되어 있으면 두 값 조합이 바뀔 때마다 소계 행이 삽입되고, 마지막에 총합 행이 추가됩니다.</p>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 목록편집 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-listedit">
+<h1>목록편집</h1>
+<p><code>grid_list_edit=Y</code>인 필드는 그리드에서 직접 편집 가능합니다.</p>
+
+<h2>조작법</h2>
+<table>
+<tr><th>동작</th><th>결과</th></tr>
+<tr><td>더블클릭 또는 선택 후 클릭</td><td>편집 모드 진입</td></tr>
+<tr><td>Enter</td><td>저장 → 아래 셀 이동</td></tr>
+<tr><td>Shift+Enter</td><td>저장 → 위 셀 이동</td></tr>
+<tr><td>Escape</td><td>취소</td></tr>
+<tr><td>체크박스 클릭</td><td>확인 후 즉시 토글</td></tr>
+</table>
+
+<div class="callout callout-success">
+<span class="callout-icon">✅</span>
+<div>저장 완료 시 해당 행이 초록색으로 잠깐 깜빡입니다.</div>
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 모바일 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-mobile">
+<h1>모바일</h1>
+<p>설정 → 뷰 모드 → 📱 모바일로 전환하거나, URL에 <code>?mode=mobile</code> 추가.</p>
+<ul>
+<li><strong>햄버거 메뉴</strong> → 1레벨 메뉴</li>
+<li><strong>하단 탭바</strong> → 2레벨 메뉴</li>
+<li><strong>카드형 리스트</strong> → 터치 최적화</li>
+<li><strong>카드 클릭</strong> → 풀스크린 폼</li>
+<li><strong>자동 감지</strong> — 모바일 기기는 자동 모바일 모드</li>
+</ul>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- 사용자: 단축키 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-user-shortcuts">
+<h1>단축키</h1>
+<table>
+<tr><th>키</th><th>동작</th></tr>
+<tr><td><code>Ctrl+C</code></td><td>선택 영역 복사 (탭 구분)</td></tr>
+<tr><td><code>Ctrl+A</code></td><td>전체 선택</td></tr>
+<tr><td><code>Enter</code></td><td>목록편집: 저장 + 아래로</td></tr>
+<tr><td><code>Shift+Enter</code></td><td>목록편집: 저장 + 위로</td></tr>
+<tr><td><code>Escape</code></td><td>목록편집: 취소</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- FAQ — 자주 묻는 질문 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-faq">
+<h1>자주 묻는 질문 (FAQ)</h1>
+<p>운영 중 자주 마주치는 상황과 해결책 모음.</p>
+
+<h2>Q. 행을 삭제하려는데 "읽기전용 행"이라고 막혀요</h2>
+<p>해당 메뉴의 <code>read_only_cond</code> (g04) 가 1 을 반환한 것입니다. 트리 구조에서 부모 노드는 자식이 모두 삭제된 후에만 삭제 가능 — 잎(leaf)부터 차례로 지우세요.</p>
+<p>일부 필드만은 그래도 수정하고 싶다면 그 필드의 <code>max_length</code> 끝에 <code>!</code> 를 붙이면 됩니다. (예: <code>500!</code>) 해당 필드만 편집 가능한 [부분수정] 버튼이 활성화됩니다.</p>
+
+<h2>Q. 6068 통합인쇄대기열에 추가했는데 안 보여요</h2>
+<p>인쇄 대기열 추가 = `print_request_time = NOW()` UPDATE. 뷰가 다른 DB 의 테이블을 참조하면 동기화 안 됨. v7 마이그레이션 후엔 v7 테이블을 가리키도록 뷰 재생성 필요.</p>
+<p>관리자(gadmin)면 ⚙ 설정 → 🗑 캐시 비우기 후 재시도.</p>
+
+<h2>Q. <code>RealCid</code> Unknown column 에러</h2>
+<p>v6 PascalCase 컬럼명이 mis_menu_fields.items SQL 등 저장된 SQL 조각에 남아있는 경우. 코어가 자동으로 v7 snake_case 로 치환하지만, 일부 자유서식(items 의 select)은 못 잡을 수 있습니다. → 해당 SQL 을 직접 v7 컬럼명으로 수정하거나, 코어가 처리할 수 있는 표준 식으로 바꾸세요.</p>
+
+<h2>Q. 기본 폼에서 작성자명만 보이고 사번이 안 보여요</h2>
+<p>v7 의 Qn 패턴(<code>table_XXXQnYYY</code>) 은 편집모드에서 selectbox 하나로 통합 표시하므로 value 필드를 숨깁니다. <strong>조회(view) 모드에서는 함께 표시</strong>되도록 자동 처리됩니다 (이름 + 사번 동시 노출).</p>
+
+<h2>Q. virtual_field 행이 리스트에 안 나타나요</h2>
+<p>virtual_field 도 일반 필드와 동일한 <code>col_width</code> 룰을 따릅니다 — <code>col_width=0</code> 은 리스트 숨김 / 폼만 표시. 리스트에 보이려면 <code>col_width</code> 를 양수로 설정하세요. 그러면 <code>grid_ctl_name</code> 에 따라 컨트롤이 렌더되고, 사용자로직 (<code>list_json_load</code> / <code>view_load</code>) 에서 값을 채워 넣고, 저장 시엔 BE 의 <code>filterData</code> 가 db_table≠'table_m' 항목을 자동 skip 합니다.</p>
+
+<h2>Q. 저장 직후 "real_pid='631'" 같은 이상한 쿼리</h2>
+<p>숨김 PK (<code>col_width=-1</code>) 메뉴에서 발생하던 이슈. 코어가 저장 응답에 visible-key 값(예: <code>'speedmis000631'</code>)을 돌려주도록 수정되어 해결. 캐시 비우기 후 재시도하세요.</p>
+
+<h2>Q. 캐시 비우기 버튼이 어디 있나요?</h2>
+<p>topbar ⚙ 설정 → 🗑 캐시 비우기. <strong>gadmin 또는 개발자 그룹(group_idx=83)</strong> 멤버만 노출.</p>
+
+<h2>Q. 운영 모드 / 개발자 모드 전환은?</h2>
+<p>설정 패널의 운영 모드 토글. 개발자 모드 켜면 SQL 디버그 출력, 라벨 tooltip 에 컬럼/alias 정보 표시됨. <strong>gadmin 또는 개발자 그룹</strong> 만 토글 가능. 비멤버도 콘솔에서 <code>misDevOn() / misDevOff()</code> 로 임시 사용 가능.</p>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- TIPS — 필드 설계 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-tips-fields">
+<h1>필드 설계 팁</h1>
+
+<h2>1. 그룹화 — col_title 의 콤마 형식</h2>
+<p>같은 그룹 필드의 col_title 을 <code>"그룹명,컬럼명"</code> 형식으로 두면 자동으로 묶임:</p>
+<pre><code>분류,제조사모델분류
+,제조사모델분류코드          ← 콤마 + 빈 그룹명 = 직전 그룹 계속
+,변경할 제조사모델분류
+,부품분류명
+부품분류코드               ← 콤마 없음 = 그룹 종료</code></pre>
+<ul>
+<li><strong>리스트(그리드)</strong>: 2단 헤더 — 그룹 띠가 위에 colspan 으로 표시</li>
+<li><strong>폼(뷰)</strong>: 곡선 테두리(fieldset+legend) 박스로 묶임. 그룹 시작/끝 자동 줄바꿈</li>
+</ul>
+
+<h2>2. <code>:</code> 콜론으로 섹션 제목</h2>
+<p>col_title 에 <code>:</code> 가 포함되면 폼에서 데이터 영역 없는 섹션 헤더로 렌더 (전체 폭 가로띠).</p>
+
+<h2>3. max_length 활용</h2>
+<table>
+<tr><th>값</th><th>의미</th></tr>
+<tr><td>양수</td><td>일반 (입력 한도)</td></tr>
+<tr><td>음수</td><td>등록만 가능, 수정 불가 (예: 자동 발번 필드)</td></tr>
+<tr><td>0</td><td>등록·수정 모두 readonly (조회 전용)</td></tr>
+<tr><td>끝이 !</td><td>row readonly 무시 + 부분수정 허용 (첨부는 multi 의미)</td></tr>
+</table>
+
+<h2>4. virtual_field 사용</h2>
+<p>DB 컬럼 없이 폼/리스트에 가상 필드 노출:</p>
+<pre><code>db_table = 'virtual_field'
+db_field = 'price'           -- 가상 컬럼명 (alias_name 의 Qn 뒷부분)
+grid_ctl_name = 'text'       -- 컨트롤
+max_length = '13'            -- 입력 한도
+col_title = '실판매가'</code></pre>
+<p>BE 는 <code>'' AS alias</code> 로 빈 값 반환. 사용자로직에서 <code>list_json_load</code> / <code>view_load</code> 훅으로 값 채워 넣고, <code>save_writeBefore</code> 등에서 <code>$_POST</code> 로 입력값 받아 별도 처리. 저장 시엔 코어가 자동 무시.</p>
+
+<h2>5. read_only_cond (g04) — 행 단위 잠금</h2>
+<p><code>mis_menus.read_only_cond</code> 에 SQL 식을 넣으면 <code>1=잠금 / 0=정상</code>. 행 단위 readonly 처리되어 수정·삭제 차단.</p>
+<pre><code>-- 트리 잎 노드만 삭제 허용 (parts_cate_a)
+EXISTS(SELECT 1 FROM parts_cate_a c WHERE c.upidx = table_m.idx AND c.useflag = '1')
+
+-- gadmin 외엔 종료된 데이터 잠금
+case when datediff(IFNULL(table_m.종료일,'2100-01-01'), NOW()) &lt; 0
+     and '$misSessionUserId' &lt;&gt; 'gadmin' then 1 else 0 end</code></pre>
+
+<h2>6. ip / hit / wdate 자동 컬럼</h2>
+<p>테이블에 다음 컬럼이 있으면 코어가 자동 처리 (사용자로직 불필요):</p>
+<table>
+<tr><th>컬럼</th><th>동작</th></tr>
+<tr><td><code>wdater</code> / <code>wdate</code></td><td>INSERT 시 작성자 / 작성일시</td></tr>
+<tr><td><code>lastupdater</code> / <code>lastupdate</code></td><td>UPDATE 시 수정자 / 수정일시</td></tr>
+<tr><td><code>ip</code> 또는 <code>ip_address</code></td><td>INSERT 시 접속자 IP (프록시 헤더 우선)</td></tr>
+<tr><td><code>hit</code></td><td>조회 시 +1, 같은 브라우저 세션에서 같은 레코드는 1회만 카운트</td></tr>
+</table>
+
+<h2>7. col_width 음수 활용</h2>
+<table>
+<tr><th>값</th><th>리스트</th><th>폼</th></tr>
+<tr><td>양수 (10)</td><td>표시 (10*8px)</td><td>표시</td></tr>
+<tr><td>0</td><td>숨김</td><td>표시</td></tr>
+<tr><td>-1</td><td>숨김 (PK 일 경우 visible 필드가 링크)</td><td>숨김</td></tr>
+<tr><td>-2</td><td>완전 숨김</td><td>숨김</td></tr>
+</table>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- TIPS — 성능 / 캐시 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-tips-perf">
+<h1>성능 / 캐시 팁</h1>
+
+<h2>캐시 계층</h2>
+<table>
+<tr><th>레벨</th><th>저장</th><th>키</th><th>무효화 시점</th></tr>
+<tr><td>스키마 캐시</td><td>APCu / 파일</td><td>fields, menus</td><td>mis_menus / mis_menu_fields 변경 시 자동</td></tr>
+<tr><td>데이터 캐시</td><td>APCu / 파일</td><td>{real_pid}_{user}_{md5(filter+orderby+page)}</td><td>해당 real_pid 저장/삭제 시 자동</td></tr>
+<tr><td>클라이언트</td><td>TanStack Query</td><td>queryKey</td><td>invalidate 호출 시</td></tr>
+</table>
+
+<h2>캐시 비우기</h2>
+<p>topbar ⚙ 설정 → 🗑 캐시 비우기 (gadmin / 개발자 그룹 멤버).</p>
+<p>또는 그리드 패널 더보기 (...) 메뉴 → 캐시 비우기 (gadmin 만).</p>
+
+<h2>같은 테이블을 쓰는 형제 메뉴 자동 무효화</h2>
+<p>예: 6062 (parts_cate_a) 에서 저장 → 6038 (같은 테이블 쓰는 다른 메뉴)도 자동 invalidate.</p>
+<p>뷰(view) 를 통해 간접 참조하는 경우도 INFORMATION_SCHEMA.VIEW_TABLE_USAGE 로 추적해 함께 비웁니다.</p>
+
+<h2>SSR initialData</h2>
+<p>첫 페이지 로드 시 PHP 가 첫 데이터를 <code>window.__INITIAL_DATA__</code> 에 주입 → 별도 API 호출 없이 즉시 표시.</p>
+
+<h2>대용량 리스트 — psize 999999</h2>
+<p>URL 파라미터 <code>psize=999999</code> 또는 <code>pageSize=999999</code> 로 페이징을 숨길 수 있지만 데이터가 많으면 브라우저 메모리 부담. 5만건 이하 권장.</p>
+
+<h2>aggregate 모드 활용</h2>
+<p>대용량 조회를 즉시 집계행만 보고 싶을 때 <code>aggregate=simple.auto</code> / <code>simple.sum</code> 사용. 실데이터는 집계 행 클릭 시 팝업.</p>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!-- TIPS — v6 → v7 컨벤션 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="doc-section" id="sec-tips-conv">
+<h1>v6 → v7 마이그레이션 컨벤션</h1>
+
+<h2>이름 규칙</h2>
+<ul>
+<li>테이블: <code>PascalCase</code> → <code>mis_</code> 접두어 + <code>snake_case</code> (예: MisMenuList → mis_menus)</li>
+<li>컬럼: 동일 (RealPid → real_pid)</li>
+<li>예외: g5_*, mis_parts_*, v(v)_mis_parts_* 외부 테이블/뷰의 컬럼은 변경 금지 (useflag/HIT 만 rename 가능)</li>
+</ul>
+
+<h2>이름은 그대로, snake_case 변환만</h2>
+<p>v6 의 의미있는 컬럼명은 그대로 유지. PascalCase → snake_case 변환만 적용. <strong>이름 자체를 교체하지 마세요</strong> (예: lastupdate → updated_at 같은 변경 금지).</p>
+
+<h2>v7 코어가 자동 변환하는 영역</h2>
+<ul>
+<li>저장된 SQL 조각의 컬럼명 (read_only_cond, base_filter, items, group_compute, prime_key)</li>
+<li>식별자 alias 변환 (<code>table_RealPid</code> ↔ <code>table_real_pid</code> collapsed 매칭)</li>
+<li>FROM/JOIN 절의 v6 테이블명 → v7 테이블명</li>
+</ul>
+
+<h2>훅 함수 이름</h2>
+<table>
+<tr><th>v6</th><th>v7</th></tr>
+<tr><td>list_query()</td><td>list_query(&amp;$selectQuery, &amp;$countQuery)</td></tr>
+<tr><td>save_updateAfter()</td><td>save_updateAfter($idx, &amp;$afterScript)</td></tr>
+<tr><td>save_writeAfter()</td><td>save_writeAfter($newIdx, &amp;$afterScript)</td></tr>
+<tr><td>list_json_load() — global $data</td><td>list_json_load(&amp;$data) — 파라미터 참조</td></tr>
+</table>
+
+<h2>전역 변수 케이스</h2>
+<p>v7 은 <code>$misSessionUserId</code> 같은 camelCase 표준이지만, v6 호환 위해 <code>$MisSession_UserID</code> 도 같은 값으로 자동 alias.</p>
+
+<h2>alias_name_old 매핑</h2>
+<p>v6 로직 이식 시 변수명이 다른 경우 <code>mis_menu_fields.alias_name_old</code> 컬럼으로 v7 alias_name 을 찾아 치환할 수 있습니다.</p>
+</div>
+
+<!-- 프로젝트 구조 (참조용) -->
+<div class="doc-section" id="sec-dev-structure">
+<h1>프로젝트 구조</h1>
+<pre><code>clude_speedmis_v7/
+├── index.php          # 프론트 컨트롤러
+├── api.php            # JSON API (?act= 방식)
+├── .env               # 환경변수
+├── config/
+│   └── constants.php  # 상수 + execSql + openTabBtn
+├── core/src/
+│   ├── DataHandler.php    # CRUD 핵심 + 훅 시스템
+│   ├── QueryBuilder.php   # allFilter → SQL
+│   ├── MenuRouter.php     # 메뉴 라우터
+│   ├── AuthMiddleware.php # JWT 인증
+│   ├── PrintRenderer.php  # 인쇄양식 렌더러
+│   └── MisCache.php       # APCu/파일 캐시
+├── programs/
+│   ├── _common.php              # SpeedMIS 공통
+│   ├── _common_udef.php  # 고객사 공통
+│   ├── speedmis000036.php       # 개별 프로그램
+│   └── speedmis000036_print.html # 인쇄양식
+├── src/               # React 소스
+│   ├── components/
+│   │   ├── Layout.jsx
+│   │   ├── MainContent.jsx
+│   │   ├── DataGrid.jsx
+│   │   ├── DataForm.jsx
+│   │   ├── GanttChart.jsx
+│   │   └── mobile/
+│   └── api.js
+└── public/build/      # 빌드 결과</code></pre>
+</div>
+
+        </div><!-- content -->
+    </div><!-- main -->
+</div><!-- layout -->
+
+<script>
+// 해시 → data-section 매핑 (역방향 조회용)
+const hashMap = {};
+document.querySelectorAll('.sidebar-link').forEach(a => {
+    const hash = (a.getAttribute('href') || '').replace('#', '');
+    if (hash) hashMap[hash] = a.dataset.section;
+});
+
+function navigateTo(section) {
+    document.querySelectorAll('.sidebar-link').forEach(b => b.classList.remove('active'));
+    const link = document.querySelector('.sidebar-link[data-section="' + section + '"]');
+    if (link) link.classList.add('active');
+    document.querySelectorAll('.doc-section').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById('sec-' + section);
+    if (target) target.classList.add('active');
+    document.querySelector('.content').scrollTop = 0;
+    window.scrollTo(0, 0);
+    document.getElementById('sidebar').classList.remove('open');
+}
+
+// 사이드바 클릭
+document.querySelectorAll('.sidebar-link').forEach(a => {
+    a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const section = a.dataset.section;
+        const hash = (a.getAttribute('href') || '').replace('#', '');
+        if (hash) history.pushState(null, '', '#' + hash);
+        navigateTo(section);
+    });
+});
+
+// URL 해시로 초기 진입 / 뒤로가기
+function loadFromHash() {
+    const hash = location.hash.replace('#', '');
+    if (hash && hashMap[hash]) navigateTo(hashMap[hash]);
+}
+window.addEventListener('hashchange', loadFromHash);
+window.addEventListener('DOMContentLoaded', loadFromHash);
+if (location.hash) loadFromHash();
+
+// 검색
+function handleSearch(query) {
+    const q = query.toLowerCase().trim();
+    if (!q) {
+        document.querySelectorAll('.doc-section').forEach(s => s.classList.remove('active'));
+        document.querySelector('.doc-section').classList.add('active');
+        return;
+    }
+    document.querySelectorAll('.doc-section').forEach(s => {
+        const match = s.textContent.toLowerCase().includes(q);
+        s.classList.toggle('active', match);
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+.env
+.env.bak.*
+/node_modules/
+/uploads/
+/uploadFiles/
+/logs/
+/public/data/
+/public/build/data/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+fix_upload_perms.php
+/migration/_tmp_*

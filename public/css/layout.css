@@ -1,0 +1,336 @@
+/**
+ * SpeedMIS v7 — Layout
+ * topbar(48) / sidebar(240↔56) / content area
+ */
+
+@import './design-system.css';
+
+/* ─────────────────────────────────────────────
+   루트 레이아웃
+───────────────────────────────────────────── */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ─────────────────────────────────────────────
+   Topbar
+───────────────────────────────────────────── */
+.topbar {
+  height: var(--topbar-height);
+  background: var(--color-nav-bg);
+  border-bottom: 1px solid var(--color-nav-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+  flex-shrink: 0;
+  gap: var(--space-2);
+  z-index: 100;
+}
+
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.topbar__logo {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-nav-logo);
+  white-space: nowrap;
+  letter-spacing: -0.3px;
+  padding-right: var(--space-2);
+  border-right: 1px solid var(--color-nav-border);
+  margin-right: var(--space-1);
+}
+
+.topbar__menu-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--color-nav-text);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
+  flex-shrink: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.topbar__menu-btn:hover {
+  background: var(--color-nav-hover);
+  color: #fff;
+}
+
+/* 최상위 메뉴 탭 */
+.topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  height: var(--topbar-height);
+}
+
+.topbar__tab {
+  height: var(--topbar-height);
+  padding: 0 var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-nav-text);
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--transition-fast), border-color var(--transition-fast),
+              background var(--transition-fast);
+}
+.topbar__tab:hover {
+  color: #fff;
+  background: var(--color-nav-hover);
+}
+.topbar__tab--active {
+  color: #fff;
+  border-bottom-color: var(--color-nav-logo);
+  font-weight: 600;
+}
+
+/* 우측 사용자 영역 */
+.topbar__username {
+  font-size: var(--text-sm);
+  color: var(--color-nav-text);
+  white-space: nowrap;
+}
+
+.topbar__admin-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  background: var(--color-danger);
+  color: #fff;
+  border-radius: var(--radius-xl);
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+.topbar__logout-btn {
+  height: var(--btn-height-sm);
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-nav-border);
+  color: var(--color-nav-text);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  transition: border-color var(--transition-fast), color var(--transition-fast),
+              background var(--transition-fast);
+}
+.topbar__logout-btn:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: rgba(209, 59, 53, 0.15);
+}
+
+/* ─────────────────────────────────────────────
+   바디 (sidebar + main)
+───────────────────────────────────────────── */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   Sidebar
+───────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-nav-sidebar);
+  border-right: 1px solid var(--color-nav-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width var(--transition-base);
+}
+
+.sidebar--collapsed {
+  width: var(--sidebar-collapsed);
+}
+
+.sidebar__body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-2) 0;
+}
+
+/* 사이드바 메뉴 아이템 */
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: var(--grid-row-height);
+  color: var(--color-nav-text);
+  font-size: var(--text-base);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  border-left: 2px solid transparent;
+  transition: background var(--transition-fast), color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+.sidebar__item:hover {
+  background: var(--color-nav-hover);
+  color: #fff;
+}
+.sidebar__item--active {
+  background: var(--color-nav-active-bg);
+  color: var(--color-nav-active-text);
+  border-left-color: var(--color-nav-logo);
+  font-weight: 600;
+}
+
+.sidebar__item--group {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-nav-text-dim);
+  font-weight: 700;
+  padding-top: var(--space-3);
+  cursor: default;
+  height: auto;
+  padding-bottom: var(--space-1);
+}
+.sidebar__item--group:hover {
+  background: none;
+  color: var(--color-nav-text-dim);
+}
+
+.sidebar__item--child {
+  padding-left: var(--space-6);
+  font-size: var(--text-sm);
+}
+
+/* ─────────────────────────────────────────────
+   Main 영역
+───────────────────────────────────────────── */
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
+  min-width: 0;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  height: var(--breadcrumb-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-3);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.breadcrumb__sep {
+  color: var(--color-text-3);
+  font-size: 10px;
+}
+.breadcrumb__item--active {
+  color: var(--color-text-2);
+  font-weight: 500;
+}
+
+/* Toolbar */
+.toolbar {
+  height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.toolbar__title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-1);
+  margin-right: var(--space-2);
+}
+
+.toolbar__spacer {
+  flex: 1;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+/* Pagination bar */
+.pagination-bar {
+  height: var(--pagination-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.pagination-bar__total {
+  font-size: var(--text-sm);
+  color: var(--color-text-3);
+}
+
+/* ─────────────────────────────────────────────
+   반응형
+───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 0;
+    bottom: 0;
+    z-index: 200;
+    transform: translateX(0);
+    transition: transform var(--transition-base);
+  }
+
+  .sidebar--hidden {
+    transform: translateX(-100%);
+  }
+
+  .topbar__nav {
+    display: none;
+  }
+}

@@ -1,0 +1,710 @@
+/**
+ * SpeedMIS v7 — Mobile Design System
+ * Inspired by Toss (clean, white/blue) + Samsung One UI (precision)
+ */
+
+/* ── 모바일 CSS 변수 ── */
+:root {
+  --m-accent: #3182F6;
+  --m-accent-light: #E8F1FD;
+  --m-accent-dark: #1B64DA;
+  --m-bg: #F5F6F8;
+  --m-surface: #FFFFFF;
+  --m-surface-2: #F8F9FB;
+  --m-text-1: #191F28;
+  --m-text-2: #4E5968;
+  --m-text-3: #8B95A1;
+  --m-text-4: #B0B8C1;
+  --m-border: #E5E8EB;
+  --m-border-light: #F2F4F6;
+  --m-danger: #F04452;
+  --m-success: #03B26C;
+  --m-warning: #F59E0B;
+  --m-shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --m-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --m-shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --m-radius: 16px;
+  --m-radius-sm: 12px;
+  --m-radius-xs: 8px;
+  --m-header-h: 56px;
+  --m-tab-h: 56px;
+  --m-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme="dark"] {
+  --m-accent: #4E94F8;
+  --m-accent-light: #1A2744;
+  --m-accent-dark: #6AADFF;
+  --m-bg: #0E1117;
+  --m-surface: #1B1D27;
+  --m-surface-2: #242836;
+  --m-text-1: #ECEFF4;
+  --m-text-2: #A0A8B7;
+  --m-text-3: #6B7280;
+  --m-text-4: #4B5563;
+  --m-border: #2A2E3B;
+  --m-border-light: #1F2330;
+  --m-danger: #FF6B6B;
+  --m-success: #34D399;
+  --m-shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+  --m-shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --m-shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* ── 모바일 전체 리셋 ── */
+.m-app {
+  background: var(--m-bg);
+  color: var(--m-text-1);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── 헤더 ── */
+.m-header {
+  height: var(--m-header-h);
+  background: var(--m-surface);
+  border-bottom: 1px solid var(--m-border-light);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  flex-shrink: 0;
+  z-index: 30;
+  position: relative;
+}
+.m-header-title {
+  flex: 1;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--m-text-1);
+  letter-spacing: -0.3px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-header-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--m-text-1);
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.m-header-btn:active {
+  background: var(--m-border-light);
+}
+
+/* ── 하단 탭바 (2행) ── */
+.m-tabbar-2row {
+  background: var(--m-surface);
+  border-top: 1px solid var(--m-border-light);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--m-safe-bottom);
+  -webkit-overflow-scrolling: touch;
+}
+.m-tabbar-2row::-webkit-scrollbar { display: none; }
+.m-tabbar-scroll {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+.m-tab2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 6px;
+  min-height: 54px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--m-text-3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  position: relative;
+}
+.m-tab2:active {
+  background: var(--m-surface-2);
+}
+.m-tab2--active {
+  color: var(--m-accent);
+  font-weight: 700;
+  background: var(--m-accent-light);
+  border-radius: 8px;
+}
+.m-tab2-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+}
+.m-tab2-icon svg {
+  stroke: currentColor;
+  width: 18px;
+  height: 18px;
+}
+.m-tab2-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  word-break: keep-all;
+}
+
+/* ── 통합 검색바 ── */
+.m-search-bar {
+  padding: 8px 16px 4px;
+  background: var(--m-surface);
+}
+.m-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.m-search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--m-text-4);
+  pointer-events: none;
+}
+.m-search-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 22px;
+  border: none;
+  background: var(--m-surface-2);
+  color: var(--m-text-1);
+  font-size: 15px;
+  /* 좌측 돋보기 아이콘 + 우측 [clear][submit] 두 버튼 자리 확보 */
+  padding: 0 80px 0 42px;
+  outline: none;
+  transition: box-shadow 0.15s;
+}
+.m-search-input:focus {
+  box-shadow: 0 0 0 2px var(--m-accent);
+}
+.m-search-input::placeholder {
+  color: var(--m-text-4);
+}
+.m-search-clear {
+  position: absolute;
+  right: 44px;            /* submit 버튼 왼쪽으로 이동 */
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--m-border);
+  border-radius: 50%;
+  color: var(--m-text-3);
+  cursor: pointer;
+}
+/* 검색 실행 버튼 — 항상 우측 끝 노출 (Enter 보조용). 좌측 장식 돋보기와 동일 톤. */
+.m-search-submit {
+  position: absolute;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--m-text-4);                  /* 좌측 장식 .m-search-icon 과 동일 색 */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, background-color 0.15s;
+}
+.m-search-submit:active {
+  color: var(--m-text-3);
+  background: var(--m-border-light);
+}
+
+/* ── 필터 칩 ── */
+.m-filter-chips {
+  display: flex;
+  gap: 6px;
+  padding: 6px 16px 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;   /* iOS momentum 스크롤 */
+  touch-action: pan-x;                 /* 가로 swipe 명시적 허용 */
+  overscroll-behavior-x: contain;       /* 가로 스크롤이 페이지 가로 swipe 로 새지 않게 */
+  flex-wrap: nowrap;                   /* 줄바꿈 방지 → 가로 overflow 발생 */
+  background: var(--m-surface);
+  border-bottom: 1px solid var(--m-border-light);
+}
+.m-filter-chips > * {
+  flex-shrink: 0;                       /* 모든 자식이 줄어들지 않게 → overflow 가 발생해야 스크롤 trigger */
+}
+.m-filter-chips::-webkit-scrollbar { display: none; }
+.m-filter-chip {
+  flex-shrink: 0;
+  height: 32px;
+  border-radius: 16px;
+  border: 1px solid var(--m-border);
+  background: var(--m-surface);
+  color: var(--m-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238B95A1' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.m-filter-chip:focus {
+  border-color: var(--m-accent);
+}
+/* 범위(날짜/숫자) 필터 컨테이너 — 칩 row 안에서 [라벨][from] ~ [to] 한 묶음 */
+.m-filter-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 10px;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: 16px;
+  height: 32px;
+}
+.m-filter-range-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--m-text-2);
+  white-space: nowrap;
+  margin-right: 2px;
+}
+.m-filter-range-tilde {
+  color: var(--m-text-4);
+  font-size: 12px;
+}
+.m-filter-range .m-filter-chip {
+  height: 26px;
+  border-radius: 13px;
+  padding: 0 8px;
+  border: none;
+  background: var(--m-surface-2);
+  min-width: 60px;
+  width: auto;
+  max-width: 110px;
+}
+.m-filter-chip--date {
+  background-image: none;
+  padding-right: 10px;
+  min-width: 110px;
+  font-size: 12px;
+}
+
+/* ── 카드 ── */
+.m-card {
+  background: var(--m-surface);
+  border-radius: var(--m-radius-sm);
+  padding: 16px;
+  margin: 0 16px 10px;
+  box-shadow: var(--m-shadow-sm);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+  border: 1px solid var(--m-border-light);
+}
+.m-card:active {
+  transform: scale(0.985);
+  box-shadow: var(--m-shadow-md);
+}
+.m-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.m-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--m-text-1);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-card-status-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.m-card-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--m-text-2);
+}
+.m-card-field {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  overflow: hidden;
+}
+.m-card-field--full {
+  grid-column: span 2;
+}
+.m-card-field-label {
+  font-size: 13px;
+  color: var(--m-text-3);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.m-card-field-label::after {
+  content: ':';
+}
+.m-card-field-value {
+  font-size: 14px;
+  color: var(--m-text-1);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--m-border-light);
+}
+.m-card-meta span {
+  font-size: 12px;
+  color: var(--m-text-3);
+}
+.m-card-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--m-accent-light);
+  color: var(--m-accent);
+}
+
+/* ── 필터 (레거시 호환) ── */
+.m-filter-input,
+.m-filter-select {
+  width: 100%;
+  height: 44px;
+  border-radius: var(--m-radius-xs);
+  border: 1px solid var(--m-border);
+  background: var(--m-surface-2);
+  color: var(--m-text-1);
+  font-size: 15px;
+  padding: 0 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.m-filter-input:focus,
+.m-filter-select:focus {
+  border-color: var(--m-accent);
+}
+
+/* ── 리스트 헤더 ── */
+.m-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+}
+.m-list-count {
+  font-size: 14px;
+  color: var(--m-text-3);
+  font-weight: 500;
+}
+.m-list-reset {
+  font-size: 13px;
+  color: var(--m-accent);
+  font-weight: 600;
+  background: 0;
+  border: 0;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.m-list-reset:active {
+  background: var(--m-accent-light);
+}
+
+/* ── 더보기 버튼 ── */
+.m-load-more {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 4px 16px 16px;
+  padding: 14px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--m-accent);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: var(--m-radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.m-load-more:active {
+  background: var(--m-accent-light);
+}
+
+/* ── 빈 상태 ── */
+.m-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  text-align: center;
+}
+.m-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.15;
+}
+.m-empty-text {
+  font-size: 15px;
+  color: var(--m-text-3);
+  font-weight: 500;
+}
+
+/* ── 스켈레톤 ── */
+.m-skeleton {
+  background: linear-gradient(90deg, var(--m-border-light) 25%, var(--m-border) 50%, var(--m-border-light) 75%);
+  background-size: 200% 100%;
+  animation: m-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes m-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── 드로어 ── */
+.m-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.m-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 300px;
+  background: var(--m-surface);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--m-shadow-lg);
+  animation: m-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes m-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.m-drawer-header {
+  height: var(--m-header-h);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--m-border-light);
+}
+.m-drawer-logo {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--m-accent);
+  letter-spacing: -0.5px;
+}
+.m-drawer-item {
+  width: 100%;
+  text-align: left;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--m-text-2);
+  border: 0;
+  border-bottom: 1px solid var(--m-border-light);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.m-drawer-item:active {
+  background: var(--m-surface-2);
+}
+.m-drawer-item--active {
+  color: var(--m-accent);
+  font-weight: 700;
+  background: var(--m-accent-light);
+}
+.m-drawer-footer {
+  border-top: 1px solid var(--m-border-light);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.m-drawer-user {
+  font-size: 13px;
+  color: var(--m-text-3);
+  font-weight: 500;
+}
+.m-drawer-actions {
+  display: flex;
+  gap: 8px;
+}
+.m-drawer-btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--m-radius-xs);
+  border: 1px solid var(--m-border);
+  background: var(--m-surface-2);
+  color: var(--m-text-2);
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.1s;
+}
+.m-drawer-btn:active {
+  background: var(--m-border-light);
+}
+.m-drawer-btn--danger {
+  background: var(--m-danger);
+  color: #fff;
+  border-color: var(--m-danger);
+}
+.m-drawer-btn--danger:active {
+  opacity: 0.85;
+}
+
+/* ── 3레벨 프로그램 목록 ── */
+.m-submenu {
+  padding: 8px 16px;
+}
+.m-submenu-item {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  background: var(--m-surface);
+  border-radius: var(--m-radius-sm);
+  border: none;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--m-text-1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--m-shadow-sm);
+  transition: transform 0.12s;
+}
+.m-submenu-item:active {
+  transform: scale(0.98);
+}
+.m-submenu-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--m-accent);
+  flex-shrink: 0;
+}
+
+/* ── 유틸리티 ── */
+.m-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.m-truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ── __html 셀 인라인 font-size 무력화 ──
+   훅에서 __html 에 박아넣은 큰 인라인 폰트 (예: speedmis006142 의 2.2em) 가
+   모바일 카드에서 비정상적으로 커지는 문제 방지 — 색상/굵기는 보존, 크기만 카드 기본값 따라감 */
+.m-card [style*="font-size"] { font-size: inherit !important; }
+
+/* ── 상태바 색상 맞춤 ── */
+@media (display-mode: standalone) {
+  .m-header { padding-top: env(safe-area-inset-top, 0px); }
+}
+
+/* ── 헤더 액션 버튼 ── */
+.m-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.m-header-action {
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--m-border);
+  background: var(--m-surface-2);
+  color: var(--m-text-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.m-header-action:active {
+  background: var(--m-border);
+}
+.m-header-action--primary {
+  background: var(--m-accent);
+  color: #fff;
+  border-color: var(--m-accent);
+}
+.m-header-action--primary:active {
+  background: var(--m-accent-dark);
+}
+
+/* ── 최근순 토글 ── */
+.m-list-recently {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--m-text-4);
+  background: none;
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.m-list-recently--on {
+  color: var(--m-accent);
+  border-color: var(--m-accent);
+  background: var(--m-accent-light);
+  font-weight: 700;
+}
