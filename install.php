@@ -347,7 +347,7 @@ ENV;
   <p class="sub" style="text-align:center">SpeedMIS v7 (PostgreSQL) 이 성공적으로 설치되었습니다.</p>
   <?php if (!empty($log)): ?><div class="log"><?php foreach ($log as $l): ?><?= htmlspecialchars($l) ?><br><?php endforeach; ?></div><?php endif; ?>
   <div class="ok">
-    로그인은 <strong>만능비밀번호 4321</strong> 로 가능합니다 (예: admin / 4321).<br>
+    로그인은 <strong>gadmin</strong> / 비번 <strong>4321</strong> 로 로그인하세요.<br>
     운영 전환 시 <strong>.env 의 MASTER_PASSWORD 를 반드시 변경/비활성</strong> 하세요.<br>
     보안을 위해 <strong>install.php 삭제</strong>를 권장합니다.
   </div>
