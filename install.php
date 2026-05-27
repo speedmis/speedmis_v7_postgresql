@@ -290,6 +290,21 @@ ENV;
   .done-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
   a { color: #4f6ef7; text-decoration: none; }
   a:hover { text-decoration: underline; }
+
+  /* 설치 버튼 spinner */
+  .btn .btn-spinner { display:none; width:14px; height:14px; border:2px solid rgba(255,255,255,0.45); border-top-color:#FFF; border-radius:50%; margin-right:8px; vertical-align:-3px; animation: install-spin 0.7s linear infinite; }
+  .btn.is-loading .btn-spinner { display:inline-block; }
+  .btn.is-loading { background:#3b5de7; cursor:wait; }
+  .btn.is-loading .btn-label::after { content:" 중..."; }
+  @keyframes install-spin { to { transform: rotate(360deg); } }
+
+  /* 전체 화면 오버레이 */
+  #install-overlay { display:none; position:fixed; inset:0; background:rgba(15,17,23,0.55); z-index:9999; align-items:center; justify-content:center; padding:20px; }
+  .install-overlay__card { background:#fff; border-radius:14px; padding:36px 42px; text-align:center; max-width:440px; width:100%; box-shadow:0 18px 60px rgba(0,0,0,0.25); }
+  .install-overlay__spinner { width:48px; height:48px; border:4px solid #E5E8EB; border-top-color:#4F6EF7; border-radius:50%; margin:0 auto 18px; animation: install-spin 0.9s linear infinite; }
+  .install-overlay__card h2 { font-size:18px; font-weight:700; margin-bottom:10px; color:#191F28; }
+  .install-overlay__card p  { font-size:14px; line-height:1.7; color:#4E5968; }
+
 </style>
 </head>
 <body>
@@ -344,8 +359,36 @@ ENV;
       <div class="hint">이 주소에서 <b>SITE_ID</b> 가 자동 생성됩니다 (소문자/숫자 3~8자). IP면 임시값 → 나중에 도메인 접속 시 자동 갱신.</div>
     </div>
     <div class="hint" style="margin-bottom:20px">DB가 없으면 자동 생성하고, 초기 데이터(speedmis_db)를 받아 설치합니다.</div>
-    <button type="submit" class="btn">연결 &amp; 자동 설치</button>
+    <button type="submit" class="btn" id="install-submit-btn">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">연결 &amp; 자동 설치</span>
+    </button>
   </form>
+
+  <!-- 설치 진행 중 오버레이 (submit 시 표시) -->
+  <div id="install-overlay" aria-hidden="true">
+    <div class="install-overlay__card">
+      <div class="install-overlay__spinner"></div>
+      <h2>설치 진행 중...</h2>
+      <p>
+        DB 자동 생성 + 초기데이터(약 1MB) 다운로드 + 116 테이블 적재.<br>
+        평균 <b>20~60초</b> 소요됩니다. 창을 닫지 마세요.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.querySelector('form[method="post"]');
+      if (!form) return;
+      form.addEventListener('submit', function () {
+        var btn = document.getElementById('install-submit-btn');
+        if (btn) { btn.disabled = true; btn.classList.add('is-loading'); }
+        var ov = document.getElementById('install-overlay');
+        if (ov) ov.style.display = 'flex';
+      });
+    })();
+  </script>
 
 <?php elseif ($step === 3): // ── 완료 ── ?>
   <div class="done-icon">&#10004;</div>
