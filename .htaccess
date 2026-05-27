@@ -1,0 +1,49 @@
+# SpeedMIS v7 — Apache 설정 (공유 호스팅 / cafe24 / dothome / 가비아 / Apache VPS 등)
+# 이 파일이 있으면 Apache 가 자동으로 읽어 적용 — 별도 nginx/IIS 설정 불필요
+
+# ─── 보안: 민감 파일/디렉토리 외부 접근 차단 ──────────────────────────────────
+RedirectMatch 404 /\.git
+RedirectMatch 404 /\.env
+RedirectMatch 404 /\.htaccess
+RedirectMatch 404 /\.gitignore
+RedirectMatch 404 /composer\.(json|lock)$
+RedirectMatch 404 /package(-lock)?\.json$
+RedirectMatch 404 /\.cache
+RedirectMatch 404 /logs/
+RedirectMatch 404 /migration/
+RedirectMatch 404 /vendor/
+
+# ─── 인덱스 파일 우선순위 (index.php > install.php > index.html) ──────────────
+DirectoryIndex index.php install.php index.html
+
+# ─── PHP 처리 보장 (.php 확장자) ─────────────────────────────────────────────
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# ─── URL 라우팅 — 정적 파일 있으면 그대로, 없으면 index.php 로 ─────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 이미 존재하는 파일/디렉토리는 그대로 서비스
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 그 외 모든 요청은 index.php 로 (SPA fallback)
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# ─── 정적 자산 캐시 (성능) ────────────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType font/woff2 "access plus 365 days"
+</IfModule>
+
+# ─── 디렉토리 listing 차단 (보안) ─────────────────────────────────────────────
+Options -Indexes

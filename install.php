@@ -117,6 +117,7 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // 1) 기본 'postgres' DB 에 접속해 대상 DB 존재 확인 + 없으면 생성
+    //    (공유 호스팅은 CREATE DATABASE 권한이 없을 수 있어 graceful fallback)
     if (empty($errors)) {
         try {
             $dsnAdmin = "pgsql:host={$dbHost};port={$dbPort};dbname=postgres;connect_timeout=5";
@@ -127,13 +128,18 @@ if ($step === 2 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($exists->fetchColumn()) {
                 $log[] = "기존 데이터베이스 사용: {$dbName}";
             } else {
-                // dbName 은 위에서 정규식 검증됨 → 안전. PG identifier 큰따옴표 인용.
-                $safeName = '"' . str_replace('"', '""', $dbName) . '"';
-                $pdo->exec("CREATE DATABASE {$safeName} WITH ENCODING 'UTF8' TEMPLATE template0");
-                $log[] = "데이터베이스 생성: {$dbName}";
+                try {
+                    // dbName 은 위에서 정규식 검증됨 → 안전. PG identifier 큰따옴표 인용.
+                    $safeName = '"' . str_replace('"', '""', $dbName) . '"';
+                    $pdo->exec("CREATE DATABASE {$safeName} WITH ENCODING 'UTF8' TEMPLATE template0");
+                    $log[] = "데이터베이스 생성: {$dbName}";
+                } catch (PDOException $e2) {
+                    $log[] = "⚠ DB 자동 생성 권한이 없어 보입니다 (공유호스팅 등 흔한 케이스).";
+                    $log[] = "  → 호스팅 관리자 페이지에서 '{$dbName}' DB 를 미리 만들고 다시 시도하세요.";
+                }
             }
         } catch (PDOException $e) {
-            $errors[] = 'DB 서버 연결/생성 실패: ' . $e->getMessage();
+            $errors[] = 'DB 서버 연결 실패: ' . $e->getMessage();
         }
     }
 
