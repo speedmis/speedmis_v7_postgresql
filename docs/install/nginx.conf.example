@@ -1,0 +1,71 @@
+# SpeedMIS v7 — nginx 설정 예시
+#
+# nginx 는 Apache 와 달리 .htaccess 를 읽지 않아 시스템 conf 가 필요합니다.
+#
+# 사용법:
+#   1. 이 파일을 복사: sudo cp docs/install/nginx.conf.example /etc/nginx/conf.d/speedmis.conf
+#   2. server_name / root / ssl_certificate 경로 수정
+#   3. sudo nginx -t && sudo systemctl reload nginx
+#
+# Let's Encrypt 인증서 발급은 별도:
+#   sudo apt install certbot python3-certbot-nginx
+#   sudo certbot --nginx -d yourdomain.com
+
+# HTTP — ACME challenge + HTTPS 리다이렉트
+server {
+    listen 80;
+    server_name yourdomain.com;             # ← 변경
+
+    location ^~ /.well-known/acme-challenge/ {
+        allow all;
+        root /var/lib/letsencrypt;
+        try_files $uri =404;
+    }
+
+    location / { return 301 https://$host$request_uri; }
+}
+
+# HTTPS — 본 서비스
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;             # ← 변경
+    root /var/www/speedmis_v7_postgresql;      # ← 변경 (git clone 한 폴더)
+    index index.php install.php index.html;
+
+    ssl_certificate     /etc/letsencrypt/live/yourdomain.com/fullchain.pem;   # ← 변경
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;     # ← 변경
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 100M;
+
+    # ─── 보안 — 민감 디렉토리 / 파일 차단 ─────────────────────────────────
+    location ~ /\.(git|env|htaccess|gitignore) { deny all; return 404; }
+    location ~ ^/(vendor|migration|logs|\.cache|node_modules)/ { deny all; return 404; }
+    location ~ /(composer\.(json|lock)|package(-lock)?\.json)$ { deny all; return 404; }
+
+    # ─── 정적 자산 캐시 ──────────────────────────────────────────────────
+    location ~* \.(png|jpe?g|gif|svg|ico|woff2?|ttf|eot|css|js)$ {
+        expires 30d;
+        access_log off;
+        try_files $uri =404;
+    }
+
+    # ─── 라우팅 — 정적 파일 우선, 없으면 index.php (SPA fallback) ─────────
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # ─── PHP 처리 (PHP-FPM 8.3 / 8.4) ────────────────────────────────────
+    location ~ \.php$ {
+        include fastcgi_params;
+        # PHP-FPM 소켓 경로 — 환경에 맞게 변경:
+        #   Ubuntu/Debian PHP 8.3 : /var/run/php/php8.3-fpm.sock
+        #   Ubuntu/Debian PHP 8.4 : /var/run/php/php8.4-fpm.sock
+        #   CentOS / RHEL         : /run/php-fpm/www.sock
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_read_timeout 600;
+    }
+}
