@@ -32,7 +32,8 @@ function getViteAssets(string $bp = ''): array
     return compact('js', 'css');
 }
 
-$isProd  = ($_ENV['APP_ENV'] ?? '') === 'production';
+// APP_ENV 미정의 = production 가정 (배포판은 기본 prod 모드 — Vite dev 서버 localhost:5173 자산 link 회피)
+$isProd  = ($_ENV['APP_ENV'] ?? 'production') !== 'development';
 $assets  = $isProd ? getViteAssets($bp) : null;
 $vitePort = 5173;
 ?>

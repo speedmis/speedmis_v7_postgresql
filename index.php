@@ -5,6 +5,15 @@
  */
 
 define('BASE_PATH', __DIR__);
+
+// ─── .env 없으면 설치 마법사로 자동 안내 (워드프레스 패턴) ──────────────────
+// 사용자가 git clone / ZIP 압축해제만 한 직후 / 로 접근하면 SPA 로딩에서 멈춤.
+// → install.php 로 리다이렉트해 DB 정보 입력 한 번으로 설치 시작.
+if (!is_file(BASE_PATH . '/.env') && is_file(BASE_PATH . '/install.php')) {
+    header('Location: /install.php', true, 302);
+    exit;
+}
+
 require_once BASE_PATH . '/config/constants.php';
 require_once BASE_PATH . '/vendor/autoload.php';
 
