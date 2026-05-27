@@ -1052,6 +1052,15 @@ function SettingsButton({ user, toggleMode, onLogout }) {
             >ℹ 제품정보</button>
           </div>
 
+          {/* 환경설정 관리 — gadmin 전용 (.env 직접 편집 페이지) */}
+          {user?.uid === 'gadmin' && (
+            <button
+              className={optCls(false) + ' w-full'}
+              onClick={() => { setOpen(false); window.open('/envmanage.php', '_blank', 'noopener'); }}
+              title=".env 환경변수 편집 (gadmin 전용)"
+            >⚙ 환경설정 관리</button>
+          )}
+
           {/* 로그아웃 */}
           <button
             className="w-full py-2 text-sm rounded border border-danger text-danger bg-transparent cursor-pointer hover:bg-danger-dim transition-colors font-medium mt-1"
