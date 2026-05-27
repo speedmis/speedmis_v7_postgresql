@@ -44,15 +44,23 @@ function list_json_init() {
                AND up_real_pid <> ''
         ")->fetchAll(\PDO::FETCH_COLUMN);
         $GLOBALS['_314_lockedRPs'] = array_flip($locked ?: []);
+
+        // 314 의 mis_menu_fields 에 useflag alias 가 없어 $data['useflag'] 가 늘 undefined → list_json_load 에서
+        // 직접 판단 못 함. 그래서 real_pid → useflag 맵을 미리 캐싱.
+        $ufMap = $__pdo->query("SELECT real_pid, useflag FROM mis_menus")->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $GLOBALS['_314_useflagByRP'] = $ufMap ?: [];
     }
 }
 
 // 그리드 각 행에 자물쇠 표시 — useflag='1' + 자식(useflag='1') 존재 → menu_name 셀에 🔒 prefix
 function list_json_load(&$data) {
-    if (($data['useflag'] ?? '') !== '1') return;             // useflag=0 은 자물쇠 없음
-    $locked = $GLOBALS['_314_lockedRPs'] ?? [];
     $rp = (string)($data['real_pid'] ?? '');
-    if ($rp === '' || !isset($locked[$rp])) return;
+    if ($rp === '') return;
+    $ufMap  = $GLOBALS['_314_useflagByRP'] ?? [];
+    $locked = $GLOBALS['_314_lockedRPs']   ?? [];
+    // 본인 useflag='1' + 자식(useflag='1') 존재할 때만 자물쇠
+    if (($ufMap[$rp] ?? '') !== '1') return;
+    if (!isset($locked[$rp])) return;
     $name = htmlspecialchars((string)($data['menu_name'] ?? ''), ENT_QUOTES, 'UTF-8');
     $data['__html']['menu_name'] = '<span title="하위 메뉴가 있어 삭제 불가" style="margin-right:4px">🔒</span>' . $name;
 }
