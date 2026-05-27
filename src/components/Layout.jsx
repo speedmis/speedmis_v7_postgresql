@@ -1056,7 +1056,11 @@ function SettingsButton({ user, toggleMode, onLogout }) {
           {user?.uid === 'gadmin' && (
             <button
               className={optCls(false) + ' w-full'}
-              onClick={() => { setOpen(false); window.open('/envmanage.php', '_blank', 'noopener'); }}
+              onClick={() => {
+                setOpen(false);
+                const bp = (typeof window !== 'undefined' && window.__APP_CONFIG__?.basePath) || '';
+                window.open(bp + '/envmanage.php', '_blank', 'noopener');
+              }}
               title=".env 환경변수 편집 (gadmin 전용)"
             >⚙ 환경설정 관리</button>
           )}

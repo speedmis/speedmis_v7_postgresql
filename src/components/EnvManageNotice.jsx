@@ -66,7 +66,11 @@ export default function EnvManageNotice({ user }) {
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <button
-            onClick={() => { window.open('/envmanage.php', '_blank', 'noopener'); dismiss(); }}
+            onClick={() => {
+              const bp = (typeof window !== 'undefined' && window.__APP_CONFIG__?.basePath) || '';
+              window.open(bp + '/envmanage.php', '_blank', 'noopener');
+              dismiss();
+            }}
             style={{
               padding: '10px 22px', borderRadius: 8, border: 0,
               background: 'var(--color-primary, #4F6EF7)',
