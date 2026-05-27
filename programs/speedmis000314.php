@@ -33,6 +33,56 @@ function list_json_init() {
             FROM tree GROUP BY root_rp
         ")->fetchAll(\PDO::FETCH_KEY_PAIR);
         $GLOBALS['_314_descCounts'] = $rows ?: [];
+
+        // 자물쇠 판정용 — useflag='1' 인 자식이 1개라도 있는 부모 real_pid 집합 (직속 자식만)
+        // 이 집합에 들어있고 본인도 useflag='1' 인 행은 list 에서 자물쇠 표시 + 삭제 거부
+        $locked = $__pdo->query("
+            SELECT DISTINCT up_real_pid AS rp
+              FROM mis_menus
+             WHERE useflag = '1'
+               AND up_real_pid IS NOT NULL
+               AND up_real_pid <> ''
+        ")->fetchAll(\PDO::FETCH_COLUMN);
+        $GLOBALS['_314_lockedRPs'] = array_flip($locked ?: []);
+    }
+}
+
+// 그리드 각 행에 자물쇠 표시 — useflag='1' + 자식(useflag='1') 존재 → menu_name 셀에 🔒 prefix
+function list_json_load(&$data) {
+    if (($data['useflag'] ?? '') !== '1') return;             // useflag=0 은 자물쇠 없음
+    $locked = $GLOBALS['_314_lockedRPs'] ?? [];
+    $rp = (string)($data['real_pid'] ?? '');
+    if ($rp === '' || !isset($locked[$rp])) return;
+    $name = htmlspecialchars((string)($data['menu_name'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $data['__html']['menu_name'] = '<span title="하위 메뉴가 있어 삭제 불가" style="margin-right:4px">🔒</span>' . $name;
+}
+
+// 삭제 검증 — useflag='1' 행은 자식(useflag='1') 없을 때만 삭제 허용
+//   - useflag='0' (이미 삭제처리됨) 은 진짜 DELETE — 자물쇠 없음 → 그대로 통과
+//   - useflag='1' + 자식(useflag='1') 1개 이상 → 거부
+function save_deleteBefore($idx, &$cancelDelete) {
+    global $__pdo;
+    if (!$__pdo || $idx <= 0) return;
+
+    $st = $__pdo->prepare('SELECT real_pid, menu_name, useflag FROM mis_menus WHERE idx = ? LIMIT 1');
+    $st->execute([(int)$idx]);
+    $row = $st->fetch(\PDO::FETCH_ASSOC);
+    if (!$row) return;
+
+    if (($row['useflag'] ?? '') !== '1') return;              // useflag=0 → 통과 (실삭제)
+
+    $rp = (string)($row['real_pid'] ?? '');
+    if ($rp === '') return;
+
+    $cs = $__pdo->prepare(
+        "SELECT COUNT(*) FROM mis_menus WHERE up_real_pid = ? AND useflag = '1'"
+    );
+    $cs->execute([$rp]);
+    $cnt = (int)$cs->fetchColumn();
+    if ($cnt > 0) {
+        $cancelDelete = true;
+        $name = (string)($row['menu_name'] ?? $rp);
+        $GLOBALS['_client_alert'] = "[{$name}] 메뉴는 하위 메뉴 {$cnt}개가 사용중(useflag=1)이라 삭제할 수 없습니다.\n하위부터 먼저 삭제하세요.";
     }
 }
   function save_writeAfter($newIdx, &$afterScript) {
