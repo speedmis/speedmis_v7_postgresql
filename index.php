@@ -5,15 +5,6 @@
  */
 
 define('BASE_PATH', __DIR__);
-
-// ─── .env 없으면 설치 마법사로 자동 안내 (워드프레스 패턴) ──────────────────
-// 사용자가 git clone / ZIP 압축해제만 한 직후 / 로 접근하면 SPA 로딩에서 멈춤.
-// → install.php 로 리다이렉트해 DB 정보 입력 한 번으로 설치 시작.
-if (!is_file(BASE_PATH . '/.env') && is_file(BASE_PATH . '/install.php')) {
-    header('Location: /install.php', true, 302);
-    exit;
-}
-
 require_once BASE_PATH . '/config/constants.php';
 require_once BASE_PATH . '/vendor/autoload.php';
 
@@ -24,11 +15,6 @@ use Firebase\JWT\Key;
 // 환경변수 로드
 $dotenv = Dotenv::createImmutable(BASE_PATH);
 $dotenv->safeLoad();
-
-// SITE_ID 자동 갱신 (IP→도메인 전환 감지). SITE_ID_AUTO=pending 일 때만 .env 를 건드림.
-if (is_file(BASE_PATH . '/.env')) {
-    \App\SiteId::reconcile(BASE_PATH . '/.env');
-}
 
 // ─── 단축 URL 리다이렉트 (?s=XXXXXXX) ───────────────────────────────────────
 if (isset($_GET['s']) && preg_match('/^[A-Za-z0-9]{4,10}$/', $_GET['s'])) {
@@ -63,6 +49,9 @@ $appConfig   = [
     'appEnv'          => $_ENV['APP_ENV']              ?? 'production',
     // 자동알리미(채팅) 실시간 폴링 사용여부 — N 이면 진입 시 1회만 호출
     'chatRealtimePolling' => strtoupper((string)($_ENV['CHAT_REALTIME_POLLING'] ?? 'Y')) !== 'N',
+    // envmanage.php 에서 한 번이라도 .env 를 저장했는지 (저장 시 .env.bak.YYYYMMDD_HHmmss 자동 생성됨)
+    // false 면 gadmin 첫 진입 시 React 측에서 "환경설정 관리에서 확인하세요" 안내 카드 노출
+    'envTouched'      => count(glob(BASE_PATH . '/.env.bak.*') ?: []) > 0,
 ];
 
 // 쿠키에서 access_token 검증 → 사용자 정보 주입 (SPA 초기 렌더 최적화)

@@ -6,6 +6,7 @@ import Messenger from './components/Messenger';
 import MainContent from './components/MainContent';
 import Toast, { showToast } from './components/Toast';
 import MenuAddDialog from './components/MenuAddDialog';
+import EnvManageNotice from './components/EnvManageNotice';
 import useMobileMode from './hooks/useMobileMode';
 
 const MobileLayout = lazy(() => import('./components/mobile/MobileLayout'));
@@ -440,6 +441,7 @@ function AppContent({ user, menuTree, onLogout, siteTitle, homeGubun, homeTopRea
           />
         </Suspense>
         <Messenger mode={msgMode} setMode={setMsgMode} onUnreadChange={setMsgUnread} />
+        <EnvManageNotice user={user} />
       </>
     );
   }
@@ -459,6 +461,7 @@ function AppContent({ user, menuTree, onLogout, siteTitle, homeGubun, homeTopRea
       msgUnread={msgUnread}
     />
     <Messenger mode={msgMode} setMode={setMsgMode} onUnreadChange={setMsgUnread} />
+    <EnvManageNotice user={user} />
     </>
   );
 }
