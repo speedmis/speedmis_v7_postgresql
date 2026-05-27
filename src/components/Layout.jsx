@@ -889,7 +889,8 @@ function SettingsButton({ user, toggleMode, onLogout }) {
     }
   };
   // 도움말/홈페이지 — 현재 도메인 기준 (같은 사이트 내 정적 페이지로 연결)
-  const HELP_URL = typeof window !== 'undefined' ? window.location.origin + '/home/docs/' : '/home/docs/';
+  // 매뉴얼은 모든 사이트가 https://v7.speedmis.com/docs/ 로 통일 (정식 홈페이지)
+  const HELP_URL = 'https://v7.speedmis.com/docs/';
 
 
   const toggleTheme = () => {
@@ -1082,7 +1083,8 @@ function SettingsButton({ user, toggleMode, onLogout }) {
 
 /* ── 제품정보 팝업 ── */
 function AboutModal({ onClose }) {
-  const homepage = typeof window !== 'undefined' ? window.location.origin + '/home/index.html' : '/home/index.html';
+  // 홈페이지는 모든 사이트가 https://v7.speedmis.com/ 로 통일 (정식 홈페이지)
+  const homepage = 'https://v7.speedmis.com/';
   return (
     <>
       <div className="fixed inset-0 z-[300] bg-black/40" onClick={onClose} />
