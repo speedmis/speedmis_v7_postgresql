@@ -199,7 +199,14 @@ $distroKind = preg_match('#_v7_(\w+)$#', $repo, $m) ? strtoupper($m[1]) : '';
 <title>SpeedMIS v7 (<?= htmlspecialchars($distroKind) ?>) Update</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f4f5f7; color: #1a1d27; min-height: 100vh; padding: 40px 20px; }
+  body { font-family: 'Pretendard', -apple-system, sans-serif; background: #f4f5f7; color: #1a1d27; min-height: 100vh; }
+  .topbar { background:#fff; border-bottom:1px solid #dde0e8; padding:10px 22px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:10; }
+  .topbar h1 { margin:0; font-size:15px; font-weight:700; color:#1a1d27; }
+  .topbar .sp { flex:1; }
+  .topbar a, .topbar span.user { font-size:12px; color:#8c93b0; text-decoration:none; padding:4px 8px; border-radius:4px; }
+  .topbar a:hover { color:#4f6ef7; background:#f4f5f7; text-decoration:none; }
+  .topbar span.user b { color:#4a5068; font-weight:600; }
+  .page { padding: 40px 20px; }
   .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); width: 720px; max-width: 100%; margin: 0 auto; padding: 36px 40px; }
   h1 { font-size: 22px; margin-bottom: 6px; }
   .sub { color: #8c93b0; font-size: 14px; margin-bottom: 24px; }
@@ -245,8 +252,19 @@ $distroKind = preg_match('#_v7_(\w+)$#', $repo, $m) ? strtoupper($m[1]) : '';
 </style>
 </head>
 <body>
+
+<div class="topbar">
+  <h1>🔄 파일 업데이트 <span style="font-weight:500;color:#8c93b0;">— <?= htmlspecialchars($distroKind) ?> 배포판</span></h1>
+  <div class="sp"></div>
+  <span class="user">관리자: <b><?= ($authUid === '__recovery__') ? '복구 키' : htmlspecialchars($authUid) ?></b></span>
+  <a href="install.php">설치 마법사</a>
+  <a href="update.php">파일 업데이트</a>
+  <a href="envmanage.php">환경설정</a>
+  <a href="/">메인</a>
+</div>
+
+<div class="page">
 <div class="card">
-  <span class="tag"><?= htmlspecialchars($distroKind) ?> UPDATE</span>
   <h1>파일 업데이트</h1>
   <p class="sub">설치된 소스 파일을 GitHub <code><?= htmlspecialchars($repo) ?></code> 의 최신본(<?= htmlspecialchars(BRANCH) ?>)과 비교하고 갱신합니다.</p>
 
@@ -369,6 +387,7 @@ $distroKind = preg_match('#_v7_(\w+)$#', $repo, $m) ? strtoupper($m[1]) : '';
     </details>
   <?php endif; ?>
 </div>
+</div><!-- /page -->
 
 <div id="overlay">
   <div class="overlay-card">
