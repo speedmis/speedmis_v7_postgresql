@@ -41,6 +41,7 @@ if ($isInstalled && !isset($_GET['force'])) {
     echo '<p style="color:#888;font-size:13px;margin-bottom:24px">' . $uidLabel . ' 확인됨</p>';
     echo '<p style="margin:20px 0"><a href="/">메인으로 이동</a></p>';
     echo '<p><a href="envmanage.php" style="color:#4f6ef7">환경설정(.env) 관리</a></p>';
+    echo '<p><a href="update.php" style="color:#4f6ef7">파일 업데이트 (GitHub 최신본)</a></p>';
     echo '<p style="color:#aaa;font-size:12px;margin-top:24px"><a href="?force=1" style="color:#dc2626">다시 설치 (force) — 기존 .env 덮어씀</a></p>';
     echo '</body></html>';
     exit;

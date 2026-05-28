@@ -357,6 +357,7 @@ $idx = 0;
   <div class="sp"></div>
   <span class="user">관리자: <b><?= htmlspecialchars($uid) ?></b></span>
   <a href="install.php">설치 마법사</a>
+  <a href="update.php">파일 업데이트</a>
   <a href="/">메인</a>
 </div>
 
