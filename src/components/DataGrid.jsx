@@ -798,8 +798,11 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   const [devSql,       setDevSql]       = useState(null); // { sql, count_sql, bindings }
   const [showSqlBtn,   setShowSqlBtn]   = useState(false);
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
-  // aggregate 클릭 시 표시할 팝업: { rows, title }
+  // aggregate 클릭 시 표시할 팝업: { rows, title } — 레거시(현재 미사용)
   const [aggPopup, setAggPopup] = useState(null);
+  // aggregate 클릭 → iframe 임베드 팝업: { url, title, count }
+  // simple.auto 모드 클릭 시: 같은 프로그램을 aggregate=auto + allFilter 로 호출 (그리드 영역만 표시)
+  const [embedPopup, setEmbedPopup] = useState(null);
   const isFirstLoad       = useRef(true);
   const sqlBtnDuration    = useRef(8000);
   const onToggleViewRef      = useRef(onToggleView);
@@ -2019,7 +2022,11 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
         : []);
 
   // 필터 필드: grid_is_handle ∈ {s, t, w}
-  const filterFields = fields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? ''));
+  // popup 모드 (isPopup=Y) — embed iframe 안에선 상단 사용자 필터 영역 자체를 숨김
+  const _isPopupMode = (urlParams.current?.get('isPopup') ?? '') === 'Y';
+  const filterFields = _isPopupMode
+    ? []
+    : fields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? ''));
 
   // ※ 동일 필터로 blur 재검색 시 list 재렌더가 발생해 첫 클릭이 사라지는 문제
   //   (필터 후 idx 2번 클릭 필요) 방지 — toolbar 필터 + 컬럼 헤더 필터 통합 시그니처로 비교
@@ -2408,16 +2415,22 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
 
             if (handle === 'w') {
               const rv = filterValues[alias] ?? { from: '', to: '' };
-              // 기간 검색 input 은 기본폭의 60% 로 축소 (날짜 10자리면 충분)
-              const rangeInputCls = filterInputCls + ' w-[100px]';
+              // schema_type 으로 date / number 자동 분기 (모바일과 동일)
+              const _st = (f.schema_type ?? '').toLowerCase();
+              const isNumberRange = _st === 'number' || _st.startsWith('number');
+              const inputType  = isNumberRange ? 'text' : 'date';
+              const inputModeAttr = isNumberRange ? 'numeric' : undefined;
+              // 날짜는 native picker 아이콘 공간 필요 → 폭 더 줌
+              const rangeInputCls = filterInputCls + (isNumberRange ? ' w-[100px]' : ' w-[140px]');
               return (
                 <div key={alias} className="flex items-center gap-1 flex-shrink-0">
                   <span className="text-xs text-secondary whitespace-nowrap">{label}</span>
                   <input
                     className={rangeInputCls}
-                    type="text"
-                    placeholder="시작"
-                    value={rv.from}
+                    type={inputType}
+                    inputMode={inputModeAttr}
+                    placeholder={isNumberRange ? '시작' : ''}
+                    value={rv.from ?? ''}
                     onChange={e => handleFilterRangeChange(alias, 'from', e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
                     onBlur={toolbarBlurSearch}
@@ -2425,9 +2438,10 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                   <span className="text-xs text-muted">~</span>
                   <input
                     className={rangeInputCls}
-                    type="text"
-                    placeholder="끝"
-                    value={rv.to}
+                    type={inputType}
+                    inputMode={inputModeAttr}
+                    placeholder={isNumberRange ? '끝' : ''}
+                    value={rv.to ?? ''}
                     onChange={e => handleFilterRangeChange(alias, 'to', e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
                     onBlur={toolbarBlurSearch}
@@ -2771,16 +2785,40 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
               const isAgg = !!aggType;
               const aggRows = row.__agg_rows; // simple 모드일 때만 첨부됨
               const aggClickable = isAgg && Array.isArray(aggRows) && aggRows.length > 0;
+              // popup 모드(embed iframe): 합계(total) 행 숨김 — 부모창의 합계와 중복되므로
+              if (_isPopupMode && aggType === 'total') return null;
               const aggRowCls = aggType === 'total'   ? 'bg-surface-2 font-bold'
                               : aggType === 'subtotal' ? 'bg-surface-2/60 font-semibold'
                               : '';
               return (
               <tr key={row.idx ?? `__agg_${ri}`}
                   className={`transition-colors ${isAgg ? aggRowCls : rowBgCls}${aggClickable ? ' cursor-pointer hover:bg-accent-dim' : ''}`}
-                  onClick={aggClickable ? () => setAggPopup({
-                    rows: aggRows,
-                    title: aggType === 'total' ? '합계 상세 (전체)' : '소계 상세',
-                  }) : undefined}>
+                  onClick={aggClickable ? () => {
+                    // aggregate row 클릭 → 같은 프로그램을 aggregate=auto + allFilter 로 iframe 호출
+                    // (isMenuIn=S 로 chrome 완전 strip → 그리드만 노출, 인라인편집(grid_list_edit=Y) 그대로 작동)
+                    // 주의: urlParams.current 는 mount 시점 스냅샷이라 헤더 클릭으로 정렬이 바뀌어도 stale.
+                    //       정렬 기준은 live state(orderby) 사용, gubun 은 prop 사용.
+                    const orderbyParam = orderby || new URLSearchParams(window.location.search).get('orderby') || '';
+                    const curGubun = String(gubun || new URLSearchParams(window.location.search).get('gubun') || '');
+                    const groupFields = orderbyParam.split(',').map(s => s.replace(/^-/, '').trim()).filter(Boolean);
+                    const firstRow = aggRows[0] || {};
+                    const filters = groupFields.map(f => ({ field: f, operator: 'eq', value: String(firstRow[f] ?? '') }));
+                    const p = new URLSearchParams();
+                    p.set('gubun', curGubun);
+                    if (orderbyParam) p.set('orderby', orderbyParam);
+                    p.set('recently', 'N');
+                    p.set('aggregate', 'auto');
+                    if (aggType === 'subtotal' && filters.length) {
+                      p.set('allFilter', JSON.stringify(filters));
+                    }
+                    p.set('isMenuIn', 'S');
+                    p.set('isPopup', 'Y');   // 상단 사용자 필터·초기화·부분합전용·차트보기·+등록 숨김 + 합계 행 숨김
+                    setEmbedPopup({
+                      url: `/v7/?${p.toString()}`,
+                      title: aggType === 'total' ? '합계 상세 (전체)' : '소계 상세',
+                      count: aggRows.length,
+                    });
+                  } : undefined}>
                 {!isSimpleList && (isAgg
                   ? <td className={tdCls} style={{width:sw(45),maxWidth:sw(45)}}></td>
                   : (row.__readonly === 1 || row.__readonly === '1' || row.__readonly === true)
@@ -3011,7 +3049,24 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
         </div>
       </div>
 
-      {/* aggregate 상세 팝업 */}
+      {/* aggregate iframe 팝업 — simple.auto 모드에서 부분합/합계 행 클릭 시 표시 */}
+      {embedPopup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center modal-overlay"
+             onClick={() => { setEmbedPopup(null); window.dispatchEvent(new CustomEvent('mis:reloadGrid')); }}>
+          <div className="bg-surface rounded-lg border border-border-base shadow-pop flex flex-col overflow-hidden modal-box"
+               style={{ width: 'min(1400px, 95vw)', height: 'min(85vh, 900px)' }}
+               onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-base bg-surface-2 flex-shrink-0">
+              <span className="text-sm font-bold text-primary">{embedPopup.title} — {embedPopup.count}건</span>
+              <button className="h-btn-sm px-4 rounded border border-border-base bg-surface text-secondary text-xs cursor-pointer hover:bg-surface-2"
+                      onClick={() => { setEmbedPopup(null); window.dispatchEvent(new CustomEvent('mis:reloadGrid')); }}>닫기</button>
+            </div>
+            <iframe src={embedPopup.url} title={embedPopup.title} className="flex-1 w-full border-0" allow="fullscreen" />
+          </div>
+        </div>
+      )}
+
+      {/* aggregate 상세 팝업 (레거시 — 현재 미사용, embedPopup 으로 대체) */}
       {aggPopup && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center modal-overlay"
              onClick={() => setAggPopup(null)}>

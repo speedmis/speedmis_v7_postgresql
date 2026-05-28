@@ -989,8 +989,8 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                 }}
               >{buttonText.reset ?? '초기화'}</button>
             )}
-            {/* aggregate 활성 시 '부분합전용' 토글 (auto ↔ simple.auto) */}
-            {(() => {
+            {/* aggregate 활성 시 '부분합전용' 토글 (auto ↔ simple.auto) — popup 모드에선 숨김 */}
+            {!isPopupMode && (() => {
               const p = new URLSearchParams(window.location.search);
               const curAgg = p.get('aggregate') ?? '';
               if (curAgg !== 'auto' && curAgg !== 'simple.auto') return null;
@@ -1025,8 +1025,8 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                 </button>
               );
             })()}
-            {/* aggregate 활성 시 차트 select — '부분합전용' 옆 */}
-            {(() => {
+            {/* aggregate 활성 시 차트 select — '부분합전용' 옆. popup 모드에선 숨김 */}
+            {!isPopupMode && (() => {
               const p = new URLSearchParams(window.location.search);
               const curAgg = p.get('aggregate') ?? '';
               if (curAgg !== 'auto' && curAgg !== 'simple.auto' && curAgg !== 'sum' && curAgg !== 'simple.sum') return null;
