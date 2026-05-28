@@ -249,7 +249,10 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
         for (const [k, v] of extra) params.set(k, v);
       }
     }
-    history.pushState(null, '', '?' + decodeURIComponent(params.toString()));
+    // params 비어있으면 '?' 단독 URL ('/v7/?') 안 만들도록 pathname 으로 정리
+    const qs = params.toString();
+    const target = qs ? '?' + decodeURIComponent(qs) : window.location.pathname;
+    history.pushState(null, '', target);
   }
 
   function selectGubun(gubun, label, forceNew = false, iframeUrl = null) {
@@ -349,6 +352,9 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
       params.set('gubun', homeGubun);
       params.set('isMenuIn', 'Y');
       history.replaceState(null, '', '?' + decodeURIComponent(params.toString()));
+    } else if (!urlGubun && window.location.search === '?') {
+      // 빈 query (`/v7/?`) 면 pathname 만 남도록 정리
+      history.replaceState(null, '', window.location.pathname);
     }
   }, []);
 
@@ -473,8 +479,9 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
               if (homeGubun) {
                 selectGubun(homeGubun);
               } else {
-                updateUrl(0);
-                setActiveTopIdx(homeTopRealPid || null);
+                // SSR 에서 homeGubun 못 잡힌 케이스 — PHP 가 REAL_PID_HOME 으로 다시 계산하도록 새로고침
+                const bp = (typeof window !== 'undefined' && window.__APP_CONFIG__?.basePath) || '';
+                window.location.href = bp + '/';
               }
             }}
           >

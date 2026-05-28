@@ -1,6 +1,6 @@
 {
-  "_index-DwjM9Epk.js": {
-    "file": "assets/index-DwjM9Epk.js",
+  "_index-upzt5t3t.js": {
+    "file": "assets/index-upzt5t3t.js",
     "name": "index",
     "isDynamicEntry": true,
     "imports": [
@@ -8,7 +8,7 @@
     ]
   },
   "node_modules/@monaco-editor/react/dist/index.mjs": {
-    "file": "assets/index-BysoXrhE.js",
+    "file": "assets/index-ChbC_9Jq.js",
     "name": "index",
     "src": "node_modules/@monaco-editor/react/dist/index.mjs",
     "isDynamicEntry": true,
@@ -21,7 +21,7 @@
     "src": "node_modules/react-quill/dist/quill.snow.css"
   },
   "src/components/ChartModal.jsx": {
-    "file": "assets/ChartModal-DeD1zkU4.js",
+    "file": "assets/ChartModal-B7YLDrTy.js",
     "name": "ChartModal",
     "src": "src/components/ChartModal.jsx",
     "isDynamicEntry": true,
@@ -30,7 +30,7 @@
     ]
   },
   "src/components/Dashboard.jsx": {
-    "file": "assets/Dashboard-Dq2b6vGi.js",
+    "file": "assets/Dashboard-DpQTPIoK.js",
     "name": "Dashboard",
     "src": "src/components/Dashboard.jsx",
     "isDynamicEntry": true,
@@ -42,7 +42,7 @@
     ]
   },
   "src/components/GanttChart.jsx": {
-    "file": "assets/GanttChart-278QB1A7.js",
+    "file": "assets/GanttChart-CxdckM_j.js",
     "name": "GanttChart",
     "src": "src/components/GanttChart.jsx",
     "isDynamicEntry": true,
@@ -51,7 +51,7 @@
     ]
   },
   "src/components/mobile/MobileLayout.jsx": {
-    "file": "assets/MobileLayout-esxufvrY.js",
+    "file": "assets/MobileLayout-DlZAIvwt.js",
     "name": "MobileLayout",
     "src": "src/components/mobile/MobileLayout.jsx",
     "isDynamicEntry": true,
@@ -63,14 +63,14 @@
     ]
   },
   "src/main.jsx": {
-    "file": "assets/main-DzpQrPKm.js",
+    "file": "assets/main-q6Edxsmz.js",
     "name": "main",
     "src": "src/main.jsx",
     "isEntry": true,
     "dynamicImports": [
       "node_modules/@monaco-editor/react/dist/index.mjs",
       "src/components/GanttChart.jsx",
-      "_index-DwjM9Epk.js",
+      "_index-upzt5t3t.js",
       "src/components/GanttChart.jsx",
       "src/components/Dashboard.jsx",
       "src/components/ChartModal.jsx",
