@@ -800,9 +800,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
   // aggregate 클릭 시 표시할 팝업: { rows, title } — 레거시(현재 미사용)
   const [aggPopup, setAggPopup] = useState(null);
-  // aggregate 클릭 → iframe 임베드 팝업: { url, title, count }
-  // simple.auto 모드 클릭 시: 같은 프로그램을 aggregate=auto + allFilter 로 호출 (그리드 영역만 표시)
-  const [embedPopup, setEmbedPopup] = useState(null);
+  // (이전 embedPopup 은 mis:openTab 으로 대체됨 — 더 이상 state 불필요)
   const isFirstLoad       = useRef(true);
   const sqlBtnDuration    = useRef(8000);
   const onToggleViewRef      = useRef(onToggleView);
@@ -2794,12 +2792,12 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
               <tr key={row.idx ?? `__agg_${ri}`}
                   className={`transition-colors ${isAgg ? aggRowCls : rowBgCls}${aggClickable ? ' cursor-pointer hover:bg-accent-dim' : ''}`}
                   onClick={aggClickable ? () => {
-                    // aggregate row 클릭 → 같은 프로그램을 aggregate=auto + allFilter 로 iframe 호출
-                    // (isMenuIn=S 로 chrome 완전 strip → 그리드만 노출, 인라인편집(grid_list_edit=Y) 그대로 작동)
+                    // aggregate row 클릭 → 같은 프로그램을 aggregate=auto + allFilter 로 새 탭으로 오픈
+                    // (mis:openTab dispatch — Layout.jsx 가 forceNew=true 로 받아 항상 새 탭)
                     // 주의: urlParams.current 는 mount 시점 스냅샷이라 헤더 클릭으로 정렬이 바뀌어도 stale.
                     //       정렬 기준은 live state(orderby) 사용, gubun 은 prop 사용.
                     const orderbyParam = orderby || new URLSearchParams(window.location.search).get('orderby') || '';
-                    const curGubun = String(gubun || new URLSearchParams(window.location.search).get('gubun') || '');
+                    const curGubun = Number(gubun || new URLSearchParams(window.location.search).get('gubun') || 0);
                     const groupFields = orderbyParam.split(',').map(s => s.replace(/^-/, '').trim()).filter(Boolean);
                     const firstRow = aggRows[0] || {};
                     // 빈/NULL 값은 operator='isNull' 로 — eq 로는 NULL 매칭 안 됨
@@ -2810,21 +2808,32 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                       }
                       return { field: f, operator: 'eq', value: String(v) };
                     });
-                    const p = new URLSearchParams();
-                    p.set('gubun', curGubun);
-                    if (orderbyParam) p.set('orderby', orderbyParam);
-                    p.set('recently', 'N');
-                    p.set('aggregate', 'auto');
-                    if (aggType === 'subtotal' && filters.length) {
-                      p.set('allFilter', JSON.stringify(filters));
-                    }
-                    p.set('isMenuIn', 'S');
-                    p.set('isPopup', 'Y');   // 상단 사용자 필터·초기화·부분합전용·차트보기·+등록 숨김 + 합계 행 숨김
-                    setEmbedPopup({
-                      url: `/v7/?${p.toString()}`,
-                      title: aggType === 'total' ? '합계 상세 (전체)' : '소계 상세',
-                      count: aggRows.length,
+
+                    // 탭 라벨: 그룹값 / 그룹값 ... (N건)
+                    const labelParts = groupFields.map(f => {
+                      const v = firstRow[f];
+                      return (v === null || v === undefined || v === '') ? '(공백)' : String(v).trim();
                     });
+                    const label = aggType === 'total'
+                      ? `합계 상세 (${aggRows.length}건)`
+                      : `${labelParts.join(' / ') || '소계'} (${aggRows.length}건)`;
+
+                    // addUrl 구성 (orderby/recently/aggregate/allFilter)
+                    const extra = new URLSearchParams();
+                    if (orderbyParam) extra.set('orderby', orderbyParam);
+                    extra.set('recently', 'N');
+                    extra.set('aggregate', 'auto');
+                    if (aggType === 'subtotal' && filters.length) {
+                      extra.set('allFilter', JSON.stringify(filters));
+                    }
+
+                    window.dispatchEvent(new CustomEvent('mis:openTab', {
+                      detail: {
+                        gubun: curGubun,
+                        label,
+                        addUrl: '&' + extra.toString(),
+                      },
+                    }));
                   } : undefined}>
                 {!isSimpleList && (isAgg
                   ? <td className={tdCls} style={{width:sw(45),maxWidth:sw(45)}}></td>
@@ -3056,24 +3065,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
         </div>
       </div>
 
-      {/* aggregate iframe 팝업 — simple.auto 모드에서 부분합/합계 행 클릭 시 표시 */}
-      {embedPopup && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center modal-overlay"
-             onClick={() => { setEmbedPopup(null); window.dispatchEvent(new CustomEvent('mis:reloadGrid')); }}>
-          <div className="bg-surface rounded-lg border border-border-base shadow-pop flex flex-col overflow-hidden modal-box"
-               style={{ width: 'min(1400px, 95vw)', height: 'min(85vh, 900px)' }}
-               onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-base bg-surface-2 flex-shrink-0">
-              <span className="text-sm font-bold text-primary">{embedPopup.title} — {embedPopup.count}건</span>
-              <button className="h-btn-sm px-4 rounded border border-border-base bg-surface text-secondary text-xs cursor-pointer hover:bg-surface-2"
-                      onClick={() => { setEmbedPopup(null); window.dispatchEvent(new CustomEvent('mis:reloadGrid')); }}>닫기</button>
-            </div>
-            <iframe src={embedPopup.url} title={embedPopup.title} className="flex-1 w-full border-0" allow="fullscreen" />
-          </div>
-        </div>
-      )}
-
-      {/* aggregate 상세 팝업 (레거시 — 현재 미사용, embedPopup 으로 대체) */}
+      {/* aggregate 상세 팝업 (레거시 — 현재 미사용, mis:openTab 으로 대체) */}
       {aggPopup && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center modal-overlay"
              onClick={() => setAggPopup(null)}>
