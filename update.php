@@ -113,6 +113,40 @@ function format_size(int $n): string
     return round($n / 1024 / 1024, 2) . ' MB';
 }
 
+// ── 2b. step 1: 페이지 로딩 시 자동 버전 비교 (커밋 API 1회 호출, 경량) ─────
+$latestCommit   = null;     // ['sha','date','message','epoch']
+$currentEpoch   = null;     // 로컬 install.php mtime — 최근 update 시점
+$isOutdated     = false;
+$autoCheckError = '';
+
+if ($step === 1) {
+    $commitUrl = "https://api.github.com/repos/{$repo}/commits/" . BRANCH;
+    $raw = http_get($commitUrl, 'application/vnd.github+json', 25);
+    if ($raw !== null) {
+        $obj = json_decode($raw, true);
+        if (is_array($obj) && !empty($obj['sha'])) {
+            $dateStr = $obj['commit']['author']['date'] ?? ($obj['commit']['committer']['date'] ?? '');
+            $latestCommit = [
+                'sha'     => $obj['sha'],
+                'date'    => $dateStr,
+                'epoch'   => $dateStr ? strtotime($dateStr) : 0,
+                'message' => trim((string)($obj['commit']['message'] ?? '')),
+            ];
+        } else {
+            $autoCheckError = '커밋 응답 형식 오류';
+        }
+    } else {
+        $autoCheckError = '원격 커밋 조회 실패 (네트워크/율제한)';
+    }
+    // 로컬 install.php mtime — update.php 자체는 보존이라 install.php 가 최근 갱신 시점 신호
+    $instFile = $baseDir . '/install.php';
+    $currentEpoch = is_file($instFile) ? @filemtime($instFile) : null;
+
+    if ($latestCommit && $currentEpoch) {
+        $isOutdated = $latestCommit['epoch'] > $currentEpoch;
+    }
+}
+
 // ── 3. step 2/3: 원격 tree 가져오기 + diff 계산 ────────────────────────────
 $treeFetched = false;
 $latestSha   = '';
@@ -279,17 +313,53 @@ $distroKind = preg_match('#_v7_(\w+)$#', $repo, $m) ? strtoupper($m[1]) : '';
 
 <?php if ($step === 1): ?>
 
-  <p style="font-size:14px;color:#4a5068;line-height:1.7;margin-bottom:18px;">
-    <strong>최신 버전 확인</strong> 을 누르면 원격과 로컬 파일을 git-blob SHA 로 비교해서 차이가 있는 파일 목록을 보여줍니다. 차이 확인 후 적용 여부를 결정하세요.
-  </p>
+  <?php
+    $curLabel = $currentEpoch ? date('Y-m-d H:i', $currentEpoch)   : '(unknown)';
+    $latLabel = ($latestCommit && $latestCommit['epoch']) ? date('Y-m-d H:i', $latestCommit['epoch']) : '(unknown)';
+    $latSha   = $latestCommit ? substr($latestCommit['sha'], 0, 12) : '';
+    $latMsg   = $latestCommit ? mb_strimwidth(preg_split("/\r?\n/", $latestCommit['message'])[0] ?? '', 0, 90, '…') : '';
+  ?>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+    <div style="background:#f8f9fb;border:1px solid #dde0e8;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11px;color:#8c93b0;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">현재 버전</div>
+      <div style="font-size:18px;font-weight:700;color:#1a1d27;font-variant-numeric:tabular-nums;"><?= htmlspecialchars($curLabel) ?></div>
+      <div style="font-size:11px;color:#8c93b0;margin-top:4px;">install.php mtime 기준</div>
+    </div>
+    <div style="background:<?= $isOutdated ? '#fef9e7' : '#f0fdf4' ?>;border:1px solid <?= $isOutdated ? '#fcd34d' : '#86efac' ?>;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11px;color:<?= $isOutdated ? '#a16207' : '#15803d' ?>;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">최신 버전 (GitHub)</div>
+      <div style="font-size:18px;font-weight:700;color:#1a1d27;font-variant-numeric:tabular-nums;"><?= htmlspecialchars($latLabel) ?></div>
+      <div style="font-size:11px;color:#8c93b0;margin-top:4px;font-family:ui-monospace,monospace;">
+        <?= $latSha ? htmlspecialchars($latSha) : ($autoCheckError ?: '조회 중...') ?>
+      </div>
+    </div>
+  </div>
+
+  <?php if ($latMsg): ?>
+  <div style="background:#f8f9fb;border:1px solid #dde0e8;border-radius:6px;padding:8px 14px;font-size:12px;color:#4a5068;margin-bottom:18px;">
+    <span style="color:#8c93b0;">최신 커밋:</span> <?= htmlspecialchars($latMsg) ?>
+  </div>
+  <?php endif; ?>
+
+  <?php if ($autoCheckError): ?>
+    <div class="err"><?= htmlspecialchars($autoCheckError) ?> — 수동으로 확인 가능합니다.</div>
+  <?php elseif (!$isOutdated && $latestCommit): ?>
+    <div class="ok">✓ 최신 상태입니다. 갱신할 항목이 없을 가능성이 높습니다 (전체 비교는 아래 버튼).</div>
+  <?php else: ?>
+    <div style="background:#fef3c7;border:1px solid #fcd34d;color:#a16207;padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:16px;">
+      ⚠ 원격에 새 버전이 있습니다. 아래 버튼으로 변경 파일을 확인하고 적용하세요.
+    </div>
+  <?php endif; ?>
+
   <p style="font-size:13px;color:#8c93b0;line-height:1.7;margin-bottom:18px;">
     보존 항목: <code>.env</code> · <code>logs/</code> · <code>uploadFiles/</code> · <code>db/</code> · <code>public/data/</code> · <code>update.php</code>(self)
   </p>
+
   <form method="post">
     <input type="hidden" name="step" value="2">
-    <button type="submit" class="btn" id="check-btn">
+    <button type="submit" class="btn<?= $isOutdated ? '' : ' btn-ghost' ?>" id="check-btn"<?= ($autoCheckError === '' && !$isOutdated && $latestCommit) ? '' : '' ?>>
       <span class="btn-spinner"></span>
-      <span>최신 버전 확인</span>
+      <span><?= $isOutdated ? '업데이트 적용 (변경파일 확인)' : '최신 버전 확인 (강제 비교)' ?></span>
     </button>
   </form>
 
