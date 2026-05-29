@@ -2802,7 +2802,14 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                     const curGubun = String(gubun || new URLSearchParams(window.location.search).get('gubun') || '');
                     const groupFields = orderbyParam.split(',').map(s => s.replace(/^-/, '').trim()).filter(Boolean);
                     const firstRow = aggRows[0] || {};
-                    const filters = groupFields.map(f => ({ field: f, operator: 'eq', value: String(firstRow[f] ?? '') }));
+                    // 빈/NULL 값은 operator='isNull' 로 — eq 로는 NULL 매칭 안 됨
+                    const filters = groupFields.map(f => {
+                      const v = firstRow[f];
+                      if (v === null || v === undefined || v === '') {
+                        return { field: f, operator: 'isNull', value: '' };
+                      }
+                      return { field: f, operator: 'eq', value: String(v) };
+                    });
                     const p = new URLSearchParams();
                     p.set('gubun', curGubun);
                     if (orderbyParam) p.set('orderby', orderbyParam);
