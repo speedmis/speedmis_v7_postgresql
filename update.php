@@ -21,15 +21,16 @@ use App\InstallAuth;
 
 // ── 보존 목록: 절대 덮어쓰면 안 되는 경로 (prefix 매칭) ────────────────────
 const PRESERVE_PREFIXES = [
-    '.env',                // .env, .env.example 도 매칭됨 → 아래에서 .env.example 은 예외 처리
+    '.env',                  // .env, .env.example 도 매칭됨 → 아래에서 .env.example 은 예외 처리
+    '.update_status.json',   // 적용 이력 마커 (per-install state)
     'logs/',
     'uploadFiles/',
     'uploads/',
-    'db/',                 // 초기 데이터 번들 (install 단계에서 이미 적재)
+    'db/',                   // 초기 데이터 번들 (install 단계에서 이미 적재)
     'public/data/',
     'public/build/data/',
     'fix_upload_perms.php',
-    'update.php',          // 실행 중인 자기 자신
+    'update.php',            // 실행 중인 자기 자신
 ];
 // 예외: 위 prefix 에 걸려도 갱신해야 하는 파일
 const PRESERVE_EXCEPT = [
@@ -113,36 +114,56 @@ function format_size(int $n): string
     return round($n / 1024 / 1024, 2) . ' MB';
 }
 
-// ── 2b. step 1: 페이지 로딩 시 자동 버전 비교 (커밋 API 1회 호출, 경량) ─────
+// ── 2b. 페이지 진입 시 자동 버전 비교 (commits API 1회 — 모든 step 공통) ────
 $latestCommit   = null;     // ['sha','date','message','epoch']
-$currentEpoch   = null;     // 로컬 install.php mtime — 최근 update 시점
+$currentEpoch   = null;     // 현재 적용된 버전의 commit date (or install.php mtime fallback)
+$currentSha     = '';
+$currentSource  = '';       // 'marker' | 'install.php' | ''
 $isOutdated     = false;
 $autoCheckError = '';
+$markerFile     = $baseDir . '/.update_status.json';
 
-if ($step === 1) {
-    $commitUrl = "https://api.github.com/repos/{$repo}/commits/" . BRANCH;
-    $raw = http_get($commitUrl, 'application/vnd.github+json', 25);
-    if ($raw !== null) {
-        $obj = json_decode($raw, true);
-        if (is_array($obj) && !empty($obj['sha'])) {
-            $dateStr = $obj['commit']['author']['date'] ?? ($obj['commit']['committer']['date'] ?? '');
-            $latestCommit = [
-                'sha'     => $obj['sha'],
-                'date'    => $dateStr,
-                'epoch'   => $dateStr ? strtotime($dateStr) : 0,
-                'message' => trim((string)($obj['commit']['message'] ?? '')),
-            ];
-        } else {
-            $autoCheckError = '커밋 응답 형식 오류';
-        }
+// 1) 원격 최신 커밋 정보 (모든 step 에서 필요 — step 3 에서 마커 작성 용도)
+$commitUrl = "https://api.github.com/repos/{$repo}/commits/" . BRANCH;
+$raw = http_get($commitUrl, 'application/vnd.github+json', 25);
+if ($raw !== null) {
+    $obj = json_decode($raw, true);
+    if (is_array($obj) && !empty($obj['sha'])) {
+        $dateStr = $obj['commit']['author']['date'] ?? ($obj['commit']['committer']['date'] ?? '');
+        $latestCommit = [
+            'sha'     => $obj['sha'],
+            'date'    => $dateStr,
+            'epoch'   => $dateStr ? strtotime($dateStr) : 0,
+            'message' => trim((string)($obj['commit']['message'] ?? '')),
+        ];
     } else {
-        $autoCheckError = '원격 커밋 조회 실패 (네트워크/율제한)';
+        $autoCheckError = '커밋 응답 형식 오류';
     }
-    // 로컬 install.php mtime — update.php 자체는 보존이라 install.php 가 최근 갱신 시점 신호
+} else {
+    $autoCheckError = '원격 커밋 조회 실패 (네트워크/율제한)';
+}
+
+// 2) 현재 버전 — 마커 우선, 없으면 install.php mtime 폴백
+if (is_file($markerFile)) {
+    $marker = @json_decode((string)@file_get_contents($markerFile), true);
+    if (is_array($marker) && !empty($marker['applied_commit_date'])) {
+        $currentEpoch  = strtotime($marker['applied_commit_date']);
+        $currentSha    = (string)($marker['applied_sha'] ?? '');
+        $currentSource = 'marker';
+    }
+}
+if ($currentEpoch === null) {
     $instFile = $baseDir . '/install.php';
     $currentEpoch = is_file($instFile) ? @filemtime($instFile) : null;
+    $currentSource = 'install.php';
+}
 
-    if ($latestCommit && $currentEpoch) {
+// 3) 비교
+if ($latestCommit && $currentEpoch) {
+    // 마커가 있으면 SHA 비교가 더 정확 (날짜는 동일해도 다른 커밋일 수 있음)
+    if ($currentSource === 'marker' && $currentSha !== '') {
+        $isOutdated = $currentSha !== $latestCommit['sha'];
+    } else {
         $isOutdated = $latestCommit['epoch'] > $currentEpoch;
     }
 }
@@ -220,6 +241,21 @@ if ($step === 3 && $treeFetched && empty($errors)) {
 
     $log[] = "갱신 완료: " . count($applied) . "건"
            . ($applyFail ? ", 실패: " . count($applyFail) . "건" : "");
+
+    // 적용 시도가 있고 실패가 전부가 아니면 마커 기록
+    // (전부 실패면 굳이 마커 안 쓰는 게 안전 — 다음 페이지에서 다시 outdated 로 보임)
+    if (!empty($applied) && $latestCommit) {
+        $markerData = [
+            'applied_sha'         => $latestCommit['sha'],
+            'applied_commit_date' => $latestCommit['date'],
+            'applied_at'          => date('c'),
+            'applied_count'       => count($applied),
+            'failed_count'        => count($applyFail),
+            'repo'                => $repo,
+        ];
+        @file_put_contents($markerFile, json_encode($markerData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        $log[] = "마커 기록: {$markerFile} (sha=" . substr($latestCommit['sha'], 0, 12) . ")";
+    }
 }
 
 // ── 5. 렌더 ──────────────────────────────────────────────────────────────
@@ -324,7 +360,13 @@ $distroKind = preg_match('#_v7_(\w+)$#', $repo, $m) ? strtoupper($m[1]) : '';
     <div style="background:#f8f9fb;border:1px solid #dde0e8;border-radius:8px;padding:14px 16px;">
       <div style="font-size:11px;color:#8c93b0;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">현재 버전</div>
       <div style="font-size:18px;font-weight:700;color:#1a1d27;font-variant-numeric:tabular-nums;"><?= htmlspecialchars($curLabel) ?></div>
-      <div style="font-size:11px;color:#8c93b0;margin-top:4px;">install.php mtime 기준</div>
+      <div style="font-size:11px;color:#8c93b0;margin-top:4px;font-family:ui-monospace,monospace;">
+        <?php if ($currentSource === 'marker' && $currentSha): ?>
+          <?= htmlspecialchars(substr($currentSha, 0, 12)) ?> <span style="color:#8c93b0;font-family:inherit;">(마커)</span>
+        <?php else: ?>
+          <span style="font-family:inherit;">install.php mtime (마커 없음)</span>
+        <?php endif; ?>
+      </div>
     </div>
     <div style="background:<?= $isOutdated ? '#fef9e7' : '#f0fdf4' ?>;border:1px solid <?= $isOutdated ? '#fcd34d' : '#86efac' ?>;border-radius:8px;padding:14px 16px;">
       <div style="font-size:11px;color:<?= $isOutdated ? '#a16207' : '#15803d' ?>;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">최신 버전 (GitHub)</div>
