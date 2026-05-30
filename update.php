@@ -241,21 +241,32 @@ if ($step === 3 && $treeFetched && empty($errors)) {
 
     $log[] = "갱신 완료: " . count($applied) . "건"
            . ($applyFail ? ", 실패: " . count($applyFail) . "건" : "");
+}
 
-    // 적용 시도가 있고 실패가 전부가 아니면 마커 기록
-    // (전부 실패면 굳이 마커 안 쓰는 게 안전 — 다음 페이지에서 다시 outdated 로 보임)
-    if (!empty($applied) && $latestCommit) {
-        $markerData = [
-            'applied_sha'         => $latestCommit['sha'],
-            'applied_commit_date' => $latestCommit['date'],
-            'applied_at'          => date('c'),
-            'applied_count'       => count($applied),
-            'failed_count'        => count($applyFail),
-            'repo'                => $repo,
-        ];
-        @file_put_contents($markerFile, json_encode($markerData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        $log[] = "마커 기록: {$markerFile} (sha=" . substr($latestCommit['sha'], 0, 12) . ")";
-    }
+// ── 5. 마커 기록 (step 2 또는 3 에서 "로컬이 최신 커밋 상태" 인 게 확인되면) ──
+// 케이스:
+//  - step 2: treeFetched 성공 + diff 0건 + 에러 없음  → 로컬이 이미 최신본과 일치
+//  - step 3: treeFetched 성공 + 적용 성공(part)         → 적용 후 로컬이 최신본
+//  - step 3: treeFetched 성공 + diff 0건               → 이미 최신 (step 3 우회 케이스)
+$writeMarker = false;
+if ($latestCommit && $treeFetched && empty($errors)) {
+    if ($step === 2 && empty($diff))                          $writeMarker = true;
+    if ($step === 3 && (!empty($applied) || empty($diff)))    $writeMarker = true;
+}
+if ($writeMarker) {
+    $markerData = [
+        'applied_sha'         => $latestCommit['sha'],
+        'applied_commit_date' => $latestCommit['date'],
+        'applied_at'          => date('c'),
+        'applied_count'       => count($applied ?? []),
+        'failed_count'        => count($applyFail ?? []),
+        'repo'                => $repo,
+        'note'                => empty($diff) ? 'no-diff-already-latest' : 'applied',
+    ];
+    $ok = @file_put_contents($markerFile, json_encode($markerData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    $log[] = $ok !== false
+        ? "마커 기록: " . basename($markerFile) . " (sha=" . substr($latestCommit['sha'], 0, 12) . ")"
+        : "⚠ 마커 기록 실패 (권한 확인): {$markerFile}";
 }
 
 // ── 5. 렌더 ──────────────────────────────────────────────────────────────
