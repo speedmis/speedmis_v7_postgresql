@@ -3004,7 +3004,16 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                               );
                             })()
                           : isListEdit
-                          ? <span className="text-link cursor-pointer">{val || '-'}</span>
+                          ? (() => {
+                              // 목록편집=Y 셀도 schema_type ^^ 포맷 적용 (편집 진입 시엔 InlineEdit 에서 raw 표시)
+                              if (val === null || val === undefined || val === '') {
+                                return <span className="text-link cursor-pointer">-</span>;
+                              }
+                              const display = (typeof f.schema_type === 'string' && f.schema_type.includes('^^'))
+                                ? formatBySchema(val, f.schema_type)
+                                : val;
+                              return <span className="text-link cursor-pointer">{display}</span>;
+                            })()
                           : <CellValue val={val} schemaType={f.schema_type} />
                         }
                       </div>
