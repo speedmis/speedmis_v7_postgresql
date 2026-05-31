@@ -182,7 +182,27 @@ class MenuRouter
                 ORDER BY table_m.autogubun ASC, table_m.idx ASC"
             );
             $stmt->execute([$userId, $userId]);
-            return $stmt->fetchAll();
+            $rows = $stmt->fetchAll();
+
+            // add_url 의 동적 날짜 placeholder 치환
+            // 지원: @today / @thisMonth / @prevMonth (=@lastMonth) / @nextMonth / @thisYear
+            //       $ 접두사도 동일하게 동작 (v7 표준)
+            $today     = date('Y-m-d');
+            $thisMonth = date('Y-m');
+            $prevMonth = date('Y-m', strtotime('-1 month'));
+            $nextMonth = date('Y-m', strtotime('+1 month'));
+            $thisYear  = date('Y');
+            $find    = ['@today','@thisMonth','@prevMonth','@lastMonth','@nextMonth','@thisYear',
+                        '$today','$thisMonth','$prevMonth','$lastMonth','$nextMonth','$thisYear'];
+            $replace = [$today,$thisMonth,$prevMonth,$prevMonth,$nextMonth,$thisYear,
+                        $today,$thisMonth,$prevMonth,$prevMonth,$nextMonth,$thisYear];
+            foreach ($rows as &$r) {
+                if (!empty($r['add_url']) && (str_contains($r['add_url'], '@') || str_contains($r['add_url'], '$'))) {
+                    $r['add_url'] = str_replace($find, $replace, $r['add_url']);
+                }
+            }
+            unset($r);
+            return $rows;
         } catch (\Throwable $e) {
             $this->logger->warning('fetchMenusByAuth failed', ['err' => $e->getMessage()]);
             return [];
