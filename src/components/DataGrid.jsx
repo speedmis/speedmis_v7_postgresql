@@ -728,6 +728,10 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
           }
         } catch {}
       }
+      // 다른 행까지 영향받았으면 (alias 충돌 회피 등) 전체 목록 reload
+      if (res._listFullReload) {
+        window.dispatchEvent(new CustomEvent('mis:reloadGrid'));
+      }
 
       // 방향 이동 (Enter/Shift+Enter)
       if (direction === 'down' || direction === 'up') {

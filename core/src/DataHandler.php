@@ -1446,6 +1446,8 @@ class DataHandler
         if (!empty($GLOBALS['_client_openTab'])) $result['_client_openTab'] = $GLOBALS['_client_openTab'];
         // 훅이 edited 행 이외 값도 바꿀 수 있음을 알리는 신호 — 클라이언트가 해당 행 재조회하도록
         if (!empty($GLOBALS['_listEditReload'])) $result['_listEditReload'] = true;
+        // 다른 행까지 영향받았을 때 — 클라이언트가 전체 목록 reload 하도록 (예: 267 aliasFix)
+        if (!empty($GLOBALS['_listFullReload'])) $result['_listFullReload'] = true;
         // 저장 후 modify 폼 유지 (view 전환 안 함)
         if (!empty($GLOBALS['_client_stayOnModify'])) $result['_stayOnModify'] = true;
 
