@@ -3032,7 +3032,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
               load(1, orderby, af, recently, ps);
             }}
           >
-            {[25, 1000].concat(![25, 1000].includes(pageSize) ? [pageSize] : [])
+            {[25, 50, 100, 500, 1000].concat([25, 50, 100, 500, 1000].includes(pageSize) ? [] : [pageSize])
               .sort((a, b) => a - b)
               .map(n => <option key={n} value={n}>{n}개</option>)}
           </select>
