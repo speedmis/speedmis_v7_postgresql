@@ -3249,8 +3249,11 @@ function renderInput(field, val, readOnly, onChange, hRows = 1, gubun = 0, input
   }
 
   // 객체명(컨트롤)이 없으면 → 읽기전용 텍스트 출력 (입력글수만 있어도 편집 불가)
+  // schema_type 에 ^^ 포맷(예: number^^#,##0, date^^MM-dd) 이 있으면 그대로 적용
   if (!ctlName) {
-    return <span className={"w-full h-full px-2 text-base text-secondary bg-transparent cursor-default flex items-center" + flexAlignCls}>{val ?? ''}</span>;
+    const hasFmt = typeof type === 'string' && type.includes('^^');
+    const display = hasFmt ? formatBySchema(val, type) : (val ?? '');
+    return <span className={"w-full h-full px-2 text-base text-secondary bg-transparent cursor-default flex items-center" + flexAlignCls}>{display}</span>;
   }
   const items   = field.items ?? '';
 
