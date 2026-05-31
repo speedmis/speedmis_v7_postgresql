@@ -187,11 +187,18 @@ class MenuRouter
             // add_url 의 동적 날짜 placeholder 치환
             // 지원: @today / @thisMonth / @prevMonth (=@lastMonth) / @nextMonth / @thisYear
             //       $ 접두사도 동일하게 동작 (v7 표준)
-            $today     = date('Y-m-d');
-            $thisMonth = date('Y-m');
-            $prevMonth = date('Y-m', strtotime('-1 month'));
-            $nextMonth = date('Y-m', strtotime('+1 month'));
-            $thisYear  = date('Y');
+            // 주의 1: strtotime('-1 month') 는 31일 등에서 롤오버 버그 (5/31 → 5/1)
+            //         date('Y-m-01') 로 그달 1일 고정 후 ±1 month 가 안전.
+            // 주의 2: 서버가 UTC 면 한국 자정 직후 9시간 동안 어제 날짜가 나옴 → Asia/Seoul 기준 강제
+            $tz = new \DateTimeZone('Asia/Seoul');
+            $now = new \DateTime('now', $tz);
+            $today     = $now->format('Y-m-d');
+            $thisMonth = $now->format('Y-m');
+            $thisYear  = $now->format('Y');
+            $prev = (clone $now)->modify('first day of this month')->modify('-1 month');
+            $next = (clone $now)->modify('first day of this month')->modify('+1 month');
+            $prevMonth = $prev->format('Y-m');
+            $nextMonth = $next->format('Y-m');
             $find    = ['@today','@thisMonth','@prevMonth','@lastMonth','@nextMonth','@thisYear',
                         '$today','$thisMonth','$prevMonth','$lastMonth','$nextMonth','$thisYear'];
             $replace = [$today,$thisMonth,$prevMonth,$prevMonth,$nextMonth,$thisYear,
