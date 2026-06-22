@@ -28,7 +28,10 @@ const DB_BUNDLE_URL_DEFAULT = 'https://raw.githubusercontent.com/speedmis/speedm
 
 $envPath     = InstallAuth::resolveEnvPath();      // 표준 배포(심링크 없음)에서는 __DIR__/.env
 $isInstalled = file_exists($envPath);
-$isForce     = $isInstalled && isset($_GET['force']);   // force=1 + 이미 설치 = DB 재적재 모드 (.env 보존)
+// DB 재적재(force) 는 데모 호스트(v7*.speedmis.com)에서만 허용 — 고객 설치본에서는 숨김·차단
+$__host      = preg_replace('/:\d+$/', '', strtolower($_SERVER['HTTP_HOST'] ?? ''));
+$isDemoHost  = (bool) preg_match('/^v7[a-z0-9-]*\.speedmis\.com$/', $__host);
+$isForce     = $isInstalled && isset($_GET['force']) && $isDemoHost;   // force=1 + 이미 설치 + 데모호스트 = DB 재적재 모드 (.env 보존)
 $envData     = $isForce ? InstallAuth::parseEnvFile($envPath) : [];
 
 // 이미 설치된 경우: admin/gadmin 인증 (또는 복구키) 필요
@@ -113,6 +116,7 @@ if ($isInstalled && !$isForce) {
     </a>
   </div>
 
+  <?php if ($isDemoHost): ?>
   <div class="group">
     <div class="group-title">위험 — 데이터 손실</div>
     <a href="?force=1" class="row danger" onclick="return confirm('정말 DB 를 재적재할까요?\n기존에 입력한 모든 데이터가 사라집니다.\n(.env 는 보존됩니다)');">
@@ -124,6 +128,7 @@ if ($isInstalled && !$isForce) {
       <span class="arrow">›</span>
     </a>
   </div>
+  <?php endif; ?>
 
   <p class="footer">보안을 위해 운영 전환 후 install.php 삭제 권장</p>
 </div>
