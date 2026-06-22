@@ -113,10 +113,19 @@ class QueryBuilder
     private function parseOp(string $col, string $op, mixed $val): array
     {
         return match ($op) {
-            'eq'          => ["{$col} = ?",         [$val]],
-            'neq'         => ["{$col} != ?",        [$val]],
+            // eq 값이 빈문자열/null 이면 NULL 도 함께 매칭 (빈 카테고리 등) — '' 저장행과 NULL 저장행 모두 포함
+            'eq'          => ($val === '' || $val === null)
+                                 ? ["({$col} = '' OR {$col} IS NULL)", []]
+                                 : ["{$col} = ?",         [$val]],
+            // 부정(neq/notContains)은 NULL 도 포함해야 함 — SQL 에서 NULL != 'x' 는 false 라 빠지므로 OR IS NULL.
+            //   (예: 전체 190 - eq 1 = neq 189 가 맞음. NULL 제목 행이 누락되던 버그)
+            //   단, neq 값이 빈문자열/null 이면 '값이 있는 것'만 (NULL·'' 제외) — eq '' 의 대칭 보수.
+            //   (neq '' 는 "비어있지 않은 것"이라 NULL 은 빠져야 함)
+            'neq'         => ($val === '' || $val === null)
+                                 ? ["({$col} IS NOT NULL AND {$col} != '')", []]
+                                 : ["({$col} != ? OR {$col} IS NULL)",      [$val]],
             'contains'    => $this->symbolPrefix($col, $val) ?? ["{$col} LIKE ?", ["%{$val}%"]],
-            'notContains' => ["{$col} NOT LIKE ?",   ["%{$val}%"]],
+            'notContains' => ["({$col} NOT LIKE ? OR {$col} IS NULL)", ["%{$val}%"]],
             'startsWith'  => ["{$col} LIKE ?",       ["{$val}%"]],
             'endsWith'    => ["{$col} LIKE ?",       ["%{$val}"]],
             'gt'          => ["{$col} > ?",          [$val]],
@@ -146,6 +155,8 @@ class QueryBuilder
             if (str_starts_with($v, $sym)) {
                 $rest = trim(substr($v, strlen($sym)));
                 if ($rest === '') return null;
+                // 부정(!=)은 NULL 도 포함 (NULL != 'x' 는 false 라 빠지므로)
+                if ($sqlOp === '!=') return ["({$col} != ? OR {$col} IS NULL)", [$rest]];
                 return ["{$col} {$sqlOp} ?", [$rest]];
             }
         }

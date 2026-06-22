@@ -22,7 +22,7 @@ class Database
             if ($driver === 'pgsql') {
                 $dsn = "pgsql:host={$host};port={$port};dbname={$name}";
             } elseif ($driver === 'sqlsrv') {
-                $dsn = "sqlsrv:Server={$host},{$port};Database={$name};TrustServerCertificate=true;Encrypt=optional";
+                $dsn = "sqlsrv:Server={$host},{$port};Database={$name};TrustServerCertificate=true;Encrypt=no";
             } else {
                 $dsn = "mysql:host={$host};port={$port};dbname={$name};charset={$charset}";
             }

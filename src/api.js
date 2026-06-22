@@ -8,6 +8,35 @@ const BASE = (window.__APP_CONFIG__?.apiUrl ?? (BASE_PATH + '/api.php')).replace
 // 다른 모듈에서 절대 경로 prepend 용 — apiPath('/api.php?act=xxx') → '/v7/api.php?act=xxx'
 export function apiPath(p) { return BASE_PATH + p; }
 
+/**
+ * mis_menus.g01 프로그램 모드 → UI 동작 플래그 (전 컴포넌트 공통).
+ * 모드:
+ *   ''                : 일반 (목록+등록+수정+삭제, 폼열림)
+ *   simple_list       : 입력없음 · 폼열림 · 삭제불가          (기존)
+ *   simple_only_list  : 입력없음 · 폼 안열림 · 삭제불가
+ *   delete_list       : 입력없음 · 폼열림 · 삭제가능
+ *   delete_only_list  : 입력없음 · 폼 안열림 · 삭제가능
+ *   only_one_list     : 리스트 없이 최근 1건 (별도 처리)
+ *   gantt / dashboard : 전용 렌더
+ * @param {string} g01
+ * @param {boolean} hasWrite  쓰기권한 (없고 g01 공란이면 simple_list 로 강등 — 기존 동작)
+ */
+export function progModeFlags(g01, hasWrite = true) {
+  const m = (g01 ?? '').trim();
+  const listModes = ['simple_list', 'simple_only_list', 'delete_list', 'delete_only_list'];
+  const forcedSimple = !hasWrite && m === '';   // 읽기전용 사용자 + 일반메뉴 → simple_list 간주
+  const isOnlyOne = m === 'only_one_list';
+  return {
+    g01: m,
+    isNormal:    m === '' && !forcedSimple,                                  // 일반 CRUD (참조입력 노출 기준)
+    noInput:     listModes.includes(m) || forcedSimple,                      // +등록/간편추가/참조입력 숨김
+    noFormOpen:  m === 'simple_only_list' || m === 'delete_only_list',       // 행클릭 시 폼 안열림
+    allowDelete: hasWrite && !isOnlyOne && m !== 'simple_list' && m !== 'simple_only_list', // 삭제 허용
+    hideCheckbox: m === 'simple_list' || m === 'simple_only_list' || forcedSimple,          // 체크박스(선택) 컬럼 숨김
+    isOnlyOne,
+  };
+}
+
 let _csrfToken = null;
 
 async function ensureCsrf() {

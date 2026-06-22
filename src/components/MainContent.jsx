@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import api, { apiPath } from '../api';
+import api, { apiPath, progModeFlags } from '../api';
 import { showToast } from './Toast';
 import DataGrid from './DataGrid';
 import DataForm from './DataForm';
@@ -328,6 +328,11 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
   const [currentIdx, setCurrentIdx]         = useState(0);
   const [currentLinkVal, setCurrentLinkVal] = useState(null);
   const [panelMode, setPanelMode]           = useState('view');
+  // 우측 패널에 다른 프로그램을 끼워 보여주는 모드(예: 6173 월도 '상세' → 6169 우측 도킹).
+  //   detailUrl 이 있으면 폼 대신 iframe 을 우측 패널에 렌더. 행클릭/패널닫기 시 해제.
+  const [detailUrl,   setDetailUrl]   = useState(null);
+  const [detailLabel, setDetailLabel] = useState('상세');
+  const rootRef = useRef(null);
   // list 의 _client_alwaysModify 훅 — true 면 행 클릭 시 view 가 아닌 modify 로 진입
   const [alwaysModify, setAlwaysModify]     = useState(false);
   const currentIdxRef = useRef(currentIdx);
@@ -436,8 +441,46 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
     };
   }, []);
 
+  // 뷰 디자이너 '디자인적용' → 대상 real_pid 의 탭만 골라서 그리드/폼 재로드.
+  // (모든 열린 탭의 MainContent 가 동시에 마운트되어 있으므로 — Layout 은 비활성탭을
+  //  display:none 으로만 숨김 — 단일 window 글로벌은 마지막 마운트 탭이 덮어써
+  //  엉뚱한 탭이 갱신되는 문제가 있다. real_pid 매칭 이벤트로 정확한 탭만 갱신한다.)
+  useEffect(() => {
+    const onApplied = (e) => {
+      const rp = e?.detail?.realPid;
+      // real_pid 가 넘어왔고 이 탭의 메뉴와 다르면 무시 (다른 탭 대상)
+      if (rp && menu?.real_pid && rp !== menu.real_pid) return;
+      setGridReloadKey(k => k + 1);
+      setFormReloadKey(k => k + 1);
+    };
+    window.addEventListener('mis:designerApplied', onApplied);
+    return () => window.removeEventListener('mis:designerApplied', onApplied);
+  }, [menu?.real_pid]);
+
+  // '상세' 등 → 다른 프로그램을 우측 패널(iframe)로 도킹. 모든 탭 MainContent 가 동시 마운트돼
+  // 있으므로(비활성=display:none) 화면에 보이는 탭만 응답(offsetParent=null 이면 숨김탭 → 무시).
+  useEffect(() => {
+    const onOpenDetail = (e) => {
+      if (rootRef.current && rootRef.current.offsetParent === null) return; // 숨김(비활성) 탭
+      const d = e?.detail || {};
+      const g = d.gubun || 6169;
+      const base = window.__APP_CONFIG__?.basePath || '';
+      const add  = d.addUrl ? ('&' + d.addUrl) : '';
+      // isMenuIn=Y 는 빼서 메뉴 크롬 없이 순수 내용만 우측에 표시
+      setDetailUrl(`${base}/?gubun=${g}&isPopup=Y${add}`);
+      setDetailLabel(d.label || '상세');
+      setPanelMode('view');
+      setPanelSize(s => (s === 4 ? 2 : s)); // 전체(4)면 50%로 줄여 좌측 그리드도 보이게
+      setPanelOpen(true);
+    };
+    window.addEventListener('mis:openDetailPanel', onOpenDetail);
+    return () => window.removeEventListener('mis:openDetailPanel', onOpenDetail);
+  }, []);
+
   // 4/3/2/1 버튼(= panelSize 변경) 클릭 시 디자이너 오버라이드 해제
   useEffect(() => { setDesignerWidth(null); }, [panelSize]);
+  // 패널이 닫히면 도킹된 상세 iframe 도 해제 (다음에 행 클릭하면 정상 폼)
+  useEffect(() => { if (!panelOpen) setDetailUrl(null); }, [panelOpen]);
 
   const [gridSqlVisible, setGridSqlVisible] = useState(false);
   const [gridSqlError,   setGridSqlError]   = useState(false);
@@ -673,6 +716,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
 
   const handleToggleView = useCallback((pk, linkVal, forceOpen = false) => {
     if (onlyList) return;
+    setDetailUrl(null); // 행 클릭 = 일반 폼 열기 → 도킹된 상세 iframe 해제
     const isSame = String(currentIdxRef.current) === String(pk);
 
     // is_use_print=1 이면 우측 패널에 인쇄양식 표시
@@ -860,8 +904,10 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
   );
 
   const menuName    = menu.menu_name ?? '';
-  // simple_list 명시 OR (쓰기권한 없고 g01 공란 → 강제 simple_list 로 간주)
-  const isSimpleList  = menu.g01 === 'simple_list' || (!access.write && !menu.g01);
+  // g01 프로그램 모드 플래그 (simple_list / *_only_list / delete_* / 일반)
+  const pm = progModeFlags(menu.g01, access.write);
+  // noInput: +등록/간편추가 숨김 · noFormOpen: 행클릭 폼 안열림 · allowDelete: 삭제 허용
+  const isSimpleList  = pm.noInput;                     // (기존 변수명 유지 — '입력없음 목록형' 의미)
   const isOnlyOneList = menu.g01 === 'only_one_list';   // 리스트 없이 최근 1건만
   const isGanttMode   = menu.g01 === 'gantt';           // 간트차트 전용
   // 대시보드 전용 — menu_type='21' (대시보드 컨테이너) + add_url 에 refPid 지정
@@ -913,7 +959,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
     : formGroupTabs.slice(1).map(t => t.label); // case2: 나머지 form 그룹
 
   return (
-    <div id="mis-program" className="flex flex-col h-full overflow-hidden p-2 gap-0" data-backup-view={isBackupView ? '1' : undefined} data-real-pid={menu?.real_pid ?? ''}>
+    <div ref={rootRef} id="mis-program" className="flex flex-col h-full overflow-hidden p-2 gap-0" data-backup-view={isBackupView ? '1' : undefined} data-real-pid={menu?.real_pid ?? ''}>
       {clientCss && <style dangerouslySetInnerHTML={{ __html: scopeCssToProgram(clientCss, menu?.real_pid ?? '') }} />}
       <div className="flex flex-col flex-1 overflow-hidden bg-surface rounded border border-border-base">
         {/* 헤더 바 — 모바일에서만 자체 가로 스크롤, min-w 768 */}
@@ -1070,8 +1116,8 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                 }}
               >{btn.label}</button>
             ))}
-            {/* 선택삭제 (팝업 모드에선 숨김) */}
-            {!isSimpleList && !onlyList && !isPopupMode && access.write && (
+            {/* 선택삭제 (삭제허용 모드에서만 — delete_list/delete_only_list/일반. 팝업 모드 숨김) */}
+            {pm.allowDelete && !onlyList && !isPopupMode && (
               <button
                 id="mis-btn-bulk-delete"
                 className="h-btn-sm px-3 rounded border border-danger bg-surface text-danger text-xs font-semibold cursor-pointer hover:bg-danger hover:text-white transition-colors"
@@ -1334,7 +1380,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                 user={user}
                 menu={menu}
                 onToggleView={handleToggleView}
-                onModify={menu?.g07 === 'Y' || onlyList ? null : openModify}
+                onModify={menu?.g07 === 'Y' || onlyList || pm.noFormOpen ? null : openModify}
                 onOnlyList={setOnlyList}
                 onAlwaysModify={setAlwaysModify}
                 onClientMeta={(meta) => {
@@ -1381,13 +1427,19 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
               <div className="flex items-stretch border-b border-solid border-border-base flex-shrink-0 bg-surface h-[38px]">
                 {/* 좌측: 모드 레이블 + 탭 버튼 */}
                 <div className="flex items-stretch flex-1 min-w-0 overflow-x-auto scrollbar-hide">
-                  {(panelMode === 'write' || panelMode === 'modify') && (
+                  {/* 상세 도킹 모드 — 폼 탭 대신 라벨 한 개만 */}
+                  {detailUrl && (
+                    <span className="px-3 flex items-center text-sm font-semibold text-link border-r border-solid border-border-base whitespace-nowrap flex-shrink-0">
+                      {detailLabel}
+                    </span>
+                  )}
+                  {!detailUrl && (panelMode === 'write' || panelMode === 'modify') && (
                     <span className="px-3 flex items-center text-xs font-semibold text-secondary border-r border-solid border-border-base whitespace-nowrap flex-shrink-0">
                       {panelMode === 'write' ? '등록' : '수정'}
                     </span>
                   )}
                   {/* 인쇄폼 탭 (is_use_print=1 + view 모드) */}
-                  {isPrintMode && panelMode === 'view' && (
+                  {!detailUrl && isPrintMode && panelMode === 'view' && (
                     <button
                       type="button"
                       className={[
@@ -1397,7 +1449,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                       onClick={() => setFormActiveTab('__print__')}
                     >🖨 인쇄폼</button>
                   )}
-                  {allTabs
+                  {!detailUrl && allTabs
                     .filter(t => t.type === 'form' || ((panelMode === 'view' || panelMode === 'modify') && t.gubun > 0))
                     .map(t => {
                       const tabKey = t.type === 'form' ? t.label : `child-${t.gubun}`;
@@ -1520,8 +1572,12 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
               </div>
 
               {/* ── 패널 콘텐츠 ── */}
-              {/* 인쇄폼 탭 */}
-              {formActiveTab === '__print__' ? (
+              {/* 상세 도킹 — 다른 프로그램을 iframe 으로 (최우선) */}
+              {detailUrl ? (
+                <div className="flex-1 overflow-hidden">
+                  <iframe src={detailUrl} title={detailLabel} className="w-full h-full border-0" />
+                </div>
+              ) : formActiveTab === '__print__' ? (
                 <div className="flex-1 overflow-auto">
                   {printLoading ? (
                     <div className="p-10 text-center text-muted">인쇄양식 로딩 중...</div>
@@ -1573,10 +1629,11 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                       idx={currentIdx}
                       mode={menu?.g07 === 'Y' ? 'view' : panelMode}
                       user={user}
+                      menuG01={menu?.g01}
                       onSaved={handleSaved}
                       onCancel={handleCancel}
                       onModify={handleFormModify}
-                      onDelete={handleDeleted}
+                      onDelete={pm.allowDelete ? handleDeleted : null}
                       menuReadOnly={menu?.g07 === 'Y'}
                       activeTab={formActiveTab}
                       onTabChange={setFormActiveTab}
@@ -1654,10 +1711,11 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                             idx={currentIdx}
                             mode={panelMode}
                             user={user}
+                            menuG01={menu?.g01}
                             onSaved={handleSaved}
                             onCancel={handleCancel}
                             onModify={handleFormModify}
-                            onDelete={handleDeleted}
+                            onDelete={pm.allowDelete ? handleDeleted : null}
                             activeTab={splitRightActiveGroup ?? rightFilterGroups[0]}
                             filterGroups={rightFilterGroups}
                             hideActions={true}
@@ -1690,10 +1748,11 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                     idx={currentIdx}
                     mode={panelMode}
                     user={user}
+                    menuG01={menu?.g01}
                     onSaved={handleSaved}
                     onCancel={handleCancel}
                     onModify={handleFormModify}
-                    onDelete={isSimpleList || isOnlyOneList ? null : handleDeleted}
+                    onDelete={pm.allowDelete ? handleDeleted : null}
                     activeTab={formActiveTab}
                     onTabChange={setFormActiveTab}
                     onTabsChange={async (tabs) => {
@@ -1952,11 +2011,11 @@ function BriefInsertPopup({ gubun, user, menu, minIdx, count: initialCount, onCl
             <div className="flex-1 overflow-auto p-3">
               <DataForm
                 key={`brief-${gubun}-${currentIdx}-${panelMode}`}
-                gubun={gubun} idx={currentIdx} mode={panelMode} user={user}
+                gubun={gubun} idx={currentIdx} mode={panelMode} user={user} menuG01={menu?.g01}
                 onSaved={() => { setPanelMode('modify'); gridRef.current?.reload?.(); }}
                 onCancel={() => setPanelOpen(false)}
                 onModify={() => setPanelMode('modify')}
-                onDelete={() => { setPanelOpen(false); gridRef.current?.reload?.(); }}
+                onDelete={pm.allowDelete ? () => { setPanelOpen(false); gridRef.current?.reload?.(); } : null}
               />
             </div>
           </div>

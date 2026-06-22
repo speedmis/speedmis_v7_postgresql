@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import api from '../../api';
+import api, { progModeFlags } from '../../api';
 import DataForm from '../DataForm';
 import ChildProgram from '../ChildProgram';
 
@@ -109,8 +109,9 @@ export default function MobileFormView({ gubun, idx, linkVal, mode, user, menu, 
         <div style={{ flex: 1, overflow: 'auto', padding: 12 }} className="m-scroll">
           <DataForm
             key={`mobile-${gubun}-${idx}-${mode}`}
-            gubun={gubun} idx={idx} mode={mode} user={user}
-            onSaved={onSaved} onCancel={onBack} onModify={onModify} onDelete={onDeleted}
+            gubun={gubun} idx={idx} mode={mode} user={user} menuG01={menu?.g01}
+            onSaved={onSaved} onCancel={onBack} onModify={onModify}
+            onDelete={progModeFlags(menu?.g01).allowDelete ? onDeleted : null}
             activeTab={activeTab} onTabChange={setActiveTab} onTabsChange={handleTabsChange}
           />
         </div>

@@ -61,16 +61,18 @@
    라이트 모드 변수 (기본)
 ───────────────────────────────────────────── */
 :root {
-  /* 네비게이션 (탑바 + 사이드바) — 차콜 네이비 (직장인 선호) */
-  --color-nav-bg:          #1e2a35;           /* topbar 배경 */
-  --color-nav-sidebar:     #1a2430;           /* sidebar 배경 */
-  --color-nav-text:        #9ab0c4;           /* 기본 텍스트 */
-  --color-nav-text-dim:    #4a6278;           /* 그룹 레이블·흐린 텍스트 */
-  --color-nav-hover:       #243040;           /* hover 배경 */
-  --color-nav-active-bg:   rgba(79,158,237,0.18); /* 활성 아이템 배경 */
-  --color-nav-active-text: #6eb6f0;           /* 활성 아이템 텍스트 */
-  --color-nav-border:      #24333f;           /* 내부 구분선 */
-  --color-nav-logo:        #4f9eed;           /* 로고 강조색 */
+  /* 네비게이션 (탑바) — 토스 블루 (사이드바는 .bg-nav-sidebar 스코프에서 오버라이드) */
+  --color-nav-bg:          #154AA0;                /* topbar 배경 (토스 블루 — 세 톤 진하게) */
+  --color-nav-sidebar:     #154AA0;                /* sidebar 기본 (스코프 오버라이드로 덮임) */
+  --color-nav-text:        rgba(255,255,255,0.82); /* 기본 텍스트 (블루 위 화이트 톤) */
+  --color-nav-text-dim:    rgba(255,255,255,0.55); /* 그룹 레이블·흐린 텍스트 */
+  --color-nav-text-hover:  #FFFFFF;                /* hover 시 텍스트 */
+  --color-nav-hover:       rgba(255,255,255,0.10); /* hover 배경 (블루 위 화이트 알파) */
+  --color-nav-active-bg:   rgba(255,255,255,0.20); /* 활성 아이템 배경 */
+  --color-nav-active-text: #FFFFFF;                /* 활성 아이템 텍스트 */
+  --color-nav-border:      rgba(255,255,255,0.15); /* 내부 구분선 */
+  --color-nav-logo:        #FFFFFF;                /* 로고 강조색 */
+  --color-nav-accent:      #A8C5FF;                /* 톱바/사이드바 위 text-accent 강조색 (밝은 라이트 블루) */
 
   /* 컬러 */
   --color-bg:           #F4F5F7;
@@ -104,6 +106,23 @@
 
   /* 이미지 필터 */
   --img-filter: none;
+}
+
+/* ─────────────────────────────────────────────
+   사이드바 전용 라이트 오버라이드 — 웜 베이지/크림
+   (topbar 는 :root 의 다크 틸. 사이드바는 라이트 바탕이라 텍스트 색도 다시 잡아줘야 함)
+   다크모드는 영향 없음.
+───────────────────────────────────────────── */
+html:not([data-theme="dark"]) .bg-nav-sidebar {
+  --color-nav-sidebar:     #0A3175;                /* 사이드바 (톱바보다 한 톤 더 진한 블루로 위계) */
+  --color-nav-text:        rgba(255,255,255,0.82);
+  --color-nav-text-dim:    rgba(255,255,255,0.55);
+  --color-nav-text-hover:  #FFFFFF;
+  --color-nav-hover:       rgba(255,255,255,0.10);
+  --color-nav-border:      rgba(255,255,255,0.15);
+  --color-nav-active-bg:   rgba(255,255,255,0.20);
+  --color-nav-active-text: #FFFFFF;
+  --color-nav-logo:        #FFFFFF;
 }
 
 /* ─────────────────────────────────────────────
@@ -148,11 +167,22 @@
   --color-nav-sidebar:     #0e1520;
   --color-nav-text:        #7a9ab8;
   --color-nav-text-dim:    #2e4155;
+  --color-nav-text-hover:  #FFFFFF;
   --color-nav-hover:       #17222e;
   --color-nav-active-bg:   rgba(79,158,237,0.15);
   --color-nav-active-text: #5aaee8;
   --color-nav-border:      #182230;
   --color-nav-logo:        #4a9be0;
+  --color-nav-accent:      #5aaee8;                /* 다크 모드 톱바 위 text-accent (살짝 밝은 블루) */
+}
+
+/* ─────────────────────────────────────────────
+   톱바·사이드바 안에서 text-accent 는 어두운 네비 위에서 잘 안 보임.
+   같은 스코프에서 --color-nav-accent 로 오버라이드 (Tailwind text-accent 보다 specificity 높음).
+───────────────────────────────────────────── */
+.bg-nav-bg .text-accent,
+.bg-nav-sidebar .text-accent {
+  color: var(--color-nav-accent);
 }
 
 /* ─────────────────────────────────────────────

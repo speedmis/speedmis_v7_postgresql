@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import * as XLSX from 'xlsx-js-style';
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate';
-import api from '../api';
+import api, { progModeFlags } from '../api';
 import { showToast } from './Toast';
 import { FileAttach, parseAttachLimit } from './DataForm';
 
@@ -431,15 +431,14 @@ function toolbarOnlyAf(afStr) {
 
 /**
  * 새로고침/리로드 시 URL 의 외부 주입 필터(뷰 디자이너 등) + UI 토글 필터 병합
- * - URL allFilter 중 UI filterFields 에 없는 alias 는 외부 컨텍스트로 보존
- * - UI filterFields 에 있는 alias 는 현재 filterValues 값을 우선 (사용자 변경 반영)
+ * - URL allFilter 중 '이 메뉴의 어떤 필드도 아닌' alias 만 외부 컨텍스트로 보존
+ * - 메뉴 필드 alias 는 UI(툴바 filterValues / 컬럼헤더 colFilters)가 관리 → 외부 재주입 금지.
+ *   (컬럼헤더 필터로 지운 값이 정렬·리로드 때 stale URL 에서 되살아나는 버그 방지.
+ *    예: policy_idx=12 로 진입 후 컬럼필터 해제 → 정렬해도 다시 12 로 안 걸림)
  */
 function mergeExternalAndUiFilters(urlAfStr, filterValues, allFields) {
-  const uiAliases = new Set(
-    allFields
-      .filter(f => ['s','t','w'].includes(f.grid_is_handle ?? ''))
-      .map(f => f.alias_name)
-  );
+  // 툴바(s/t/w)뿐 아니라 그리드 컬럼 등 '메뉴에 정의된 모든 필드' 를 UI 관리 대상으로 본다.
+  const uiAliases = new Set((allFields ?? []).map(f => f.alias_name).filter(Boolean));
   let urlFilters = [];
   try { urlFilters = JSON.parse(urlAfStr ?? '[]') ?? []; } catch {}
   const external = urlFilters.filter(f => {
@@ -546,9 +545,13 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   const [access, setAccess] = useState({ read: true, write: true, admin: false });
   // write 권한 없으면 수정 모드 비활성 — 조회 모드로 강제
   useEffect(() => { if (!access.write && clickMode === 'modify') setClickMode('view'); }, [access.write]);
-  // simple_list 명시 OR (쓰기권한 없고 g01 공란 → 강제 simple_list) OR isPopup=Y (팝업은 체크박스 컬럼 불필요)
+  // g01 프로그램 모드 플래그 (simple_list / *_only_list / delete_* / 일반)
+  const pm = progModeFlags(menu?.g01, access.write);
+  // 체크박스(선택) 컬럼 숨김: simple_list/simple_only_list(삭제불가) + 팝업. delete_* 모드는 선택삭제 위해 체크박스 노출.
   const _urlIsPopup = urlParams.current?.get('isPopup') === 'Y';
-  const isSimpleList = _urlIsPopup || menu?.g01 === 'simple_list' || (!access.write && !menu?.g01);
+  const isSimpleList = _urlIsPopup || pm.hideCheckbox;
+  // 폼 안열림: 서버 _onlyList(onlyListMode) OR g01 *_only_list → 행클릭으로 뷰/수정 폼 진입 차단
+  const effOnlyList = onlyListMode || pm.noFormOpen;
   const [fields, setFields]   = useState([]);
   const [total, setTotal]     = useState(0);
   const [page, setPage]       = useState(1);
@@ -568,6 +571,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   const [savedCell, setSavedCell]     = useState(null); // { idx, alias }
   const [editVal, setEditVal]   = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const listFieldsRef = useRef([]);   // 최신 listFields (Tab 이동 콜백용)
 
 
 
@@ -616,6 +620,87 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
     startEdit(nextRi, editCell.alias, nextRow?.[editCell.alias] ?? '', nextRow?.idx, nextRow);
   }, [editCell, rows, startEdit]);
 
+  // 편집 셀 좌우 이동 (Tab → 우측, Shift+Tab → 좌측). 같은 행에서 컬럼만 이동.
+  //   우측 셀이 편집가능하면 편집상태로, 아니면 그 셀을 선택만 (편집 종료).
+  // Tab 이동 대상 셀 판정 — 일반(표시 전용) 셀은 화살표키로 이동하므로 Tab 대상에서 제외.
+  //   'edit'  : 목록편집 셀(text/check/select 등)
+  //   'button': __html 안에 버튼이 있는 셀('연결' 등)
+  //   'link'  : 첫 listField = idx/뷰폼 여는 링크 셀
+  //   null    : Tab 제외(일반 셀)
+  const cellTabKind = useCallback((ri, ci) => {
+    const lf = listFieldsRef.current || [];
+    const f = lf[ci];
+    if (!f) return null;
+    const alias = f.alias_name ?? '';
+    const row = rows[ri] || {};
+    const html = row.__html?.[alias];
+    const ml = parseInt(f.max_length ?? '', 10);
+    const roRow = (row.__readonly === 1 || row.__readonly === '1' || row.__readonly === true);
+    const noEdit = !!(html && /data-mis-noedit/.test(html));
+    const editable = access.write && !(!isNaN(ml) && ml <= 0) && !roRow && !noEdit
+      && (f.grid_list_edit === 'Y' || !!fkMapRef.current[alias]);
+    if (editable) return 'edit';
+    if (html && /<button/i.test(html)) return 'button';
+    const noLink = !!(html && /data-mis-nolink/.test(html));
+    if (ci === 0 && !noLink && !effOnlyList) return 'link';   // 첫 listField = 링크(idx) 셀
+    return null;
+  }, [rows, access, effOnlyList]);
+
+  // 지정 Tab대상 셀로 이동 — edit=편집진입, button=셀의 버튼에 포커스(Enter=클릭), link=셀선택+컨테이너포커스.
+  //   (비편집 셀은 컨테이너/버튼에 포커스를 둬 다음 Tab 도 브라우저기본 대신 그리드가 가로채게 한다)
+  const gotoTabCell = useCallback((ri, ci, kind) => {
+    const lf = listFieldsRef.current || [];
+    const f = lf[ci]; if (!f) return;
+    const alias = f.alias_name ?? '';
+    const row = rows[ri] || {};
+    if (kind === 'edit') {
+      const _pk = fields[0]?.alias_name ?? 'idx';   // pkAlias 는 아래쪽 정의 → fields 로 직접 산출
+      startEdit(ri, alias, row[alias] ?? '', row[_pk] ?? row.idx, row);
+      return;
+    }
+    setEditCell(null); setEditVal('');
+    setSelAnchor({ ri, ci }); setSelFocus({ ri, ci });
+    requestAnimationFrame(() => {
+      const sc = tableScrollRef.current;
+      const td = sc?.querySelector(`td[data-ri="${ri}"][data-ci="${ci}"]`);
+      if (kind === 'button') {
+        const btn = td?.querySelector('button');
+        if (btn) { btn.focus?.(); return; }
+      }
+      sc?.focus();
+    });
+  }, [rows, startEdit, fields]);
+
+  // Tab(우) / Shift+Tab(좌): 현재 셀 기준 다음 Tab대상(목록편집/버튼/idx) 으로 이동.
+  //   같은 행에 더 없으면 → 다음 행의 idx(link) 셀로 래핑(Shift+Tab 은 이전 행의 마지막 대상).
+  const tabMove = useCallback((ri, ci, dir) => {
+    const lf = listFieldsRef.current || [];
+    for (let c = ci + dir; c >= 0 && c < lf.length; c += dir) {
+      const k = cellTabKind(ri, c);
+      if (k) { gotoTabCell(ri, c, k); return; }
+    }
+    if (dir > 0) {
+      const nri = ri + 1;
+      if (nri >= rows.length) { setEditCell(null); setEditVal(''); return; }
+      const k0 = cellTabKind(nri, 0);                          // 다음 행 idx 셀 우선
+      if (k0) { gotoTabCell(nri, 0, k0); return; }
+      for (let c = 1; c < lf.length; c++) { const k = cellTabKind(nri, c); if (k) { gotoTabCell(nri, c, k); return; } }
+    } else {
+      const pri = ri - 1;
+      if (pri < 0) { setEditCell(null); setEditVal(''); return; }
+      for (let c = lf.length - 1; c >= 0; c--) { const k = cellTabKind(pri, c); if (k) { gotoTabCell(pri, c, k); return; } }
+    }
+  }, [rows, cellTabKind, gotoTabCell]);
+
+  const moveEditCol = useCallback((direction) => {
+    if (!editCell) return;
+    const lf = listFieldsRef.current || [];
+    const curAlias = editCell.displayAlias ?? editCell.alias;
+    const ci = lf.findIndex(f => (f.alias_name ?? '') === curAlias);
+    if (ci < 0) { setEditCell(null); setEditVal(''); return; }
+    tabMove(editCell.ri, ci, direction === 'left' ? -1 : 1);
+  }, [editCell, tabMove]);
+
   // 체크박스: 첫 클릭 → 활성화(선택 상태), 재클릭 → 토글 저장
   const [checkActive, setCheckActive] = useState(null); // { ri, alias }
   const checkActiveTimer = useRef(null);
@@ -647,29 +732,23 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
       return;
     }
 
-    // 이미 활성화된 셀 → 토글 저장
-    if (checkActive && checkActive.ri === ri && checkActive.alias === alias) {
-      const newVal = _isChecked(currentVal) ? OFF : ON;
-      setCheckActive(null);
-      if (checkActiveTimer.current) clearTimeout(checkActiveTimer.current);
-      try {
-        const res = await api.save(gubun, { [alias]: newVal, _listEdit: true }, rowIdx);
-        if (res._client_toast) showToast(res._client_toast);
-        setRows(prev => prev.map((r, i) => i === ri ? { ...r, [alias]: newVal } : r));
-        // 셀 체크마크
-        const ck = { idx: rowIdx, alias };
-        setSavedCell(ck);
-        setTimeout(() => setSavedCell(prev => prev?.idx === ck.idx && prev?.alias === ck.alias ? null : prev), 1400);
-      } catch (e) {
-        showToast(e.message || '저장 실패');
-      }
-      return;
+    // 한 번 클릭 → 즉시 토글 저장 + 어느 항목이 체크/해제됐는지 토스트
+    const newVal = _isChecked(currentVal) ? OFF : ON;
+    const checkedNow = (newVal === ON);
+    const ct = field?.col_title ? parseColTitle(field.col_title) : null;
+    const colLabel = ct ? (ct.r2 || ct.r1 || field.col_title) : (field?.col_title || alias);
+    try {
+      const res = await api.save(gubun, { [alias]: newVal, _listEdit: true }, rowIdx);
+      setRows(prev => prev.map((r, i) => i === ri ? { ...r, [alias]: newVal } : r));
+      const ck = { idx: rowIdx, alias };
+      setSavedCell(ck);
+      setTimeout(() => setSavedCell(prev => prev?.idx === ck.idx && prev?.alias === ck.alias ? null : prev), 1400);
+      if (res._client_toast) showToast(res._client_toast);
+      else showToast(`'${colLabel}' ${checkedNow ? '체크됨 ✓' : '체크 해제됨 ☐'}`, 'success');
+    } catch (e) {
+      showToast(e.message || '저장 실패', 'error');
     }
-    // 첫 클릭 → 활성화 (3초 후 자동 해제)
-    setCheckActive({ ri, alias });
-    if (checkActiveTimer.current) clearTimeout(checkActiveTimer.current);
-    checkActiveTimer.current = setTimeout(() => setCheckActive(null), 3000);
-  }, [gubun, checkActive]);
+  }, [gubun]);
 
   const saveEdit = useCallback(async (direction, overrideValue) => {
     if (!editCell) return;
@@ -681,6 +760,8 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
       // 값 변경 없어도 방향키로 이동
       if (direction === 'down' || direction === 'up') {
         moveEdit(direction);
+      } else if (direction === 'right' || direction === 'left') {
+        moveEditCol(direction);
       } else {
         setEditCell(null);
         setEditVal('');
@@ -748,6 +829,16 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
           setEditCell(null);
           setEditVal('');
         }
+        setEditSaving(false);
+        return;
+      }
+
+      // 좌우 이동 (Tab/Shift+Tab) — 저장 후 같은 행 옆 컬럼으로
+      if (direction === 'right' || direction === 'left') {
+        if (!res._listEditReload) {
+          setRows(prev => prev.map((r, i) => i === editCell.ri ? { ...r, [editCell.saveAlias]: effectiveVal } : r));
+        }
+        moveEditCol(direction);
         setEditSaving(false);
         return;
       }
@@ -903,7 +994,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
       if (devModeRef.current) listParams.dev_mode = '1';
       if (isFirstLoad.current) listParams.first_load = '1';
       // 알려지지 않은 URL 파라미터(pid, sid 등 사용자정의)도 API 로 전달 — 사용자로직 requestVB() 가 읽음
-      const _knownUrlKeys = new Set(['gubun','idx','actionFlag','isMenuIn','isPopup','isPrint','isAddURL','recently','recently_view','orderby','page','pageSize','psize','allFilter','parent_idx','tabid','aggregate','_chart','_chartFull','dev_mode','first_load','deleted']);
+      const _knownUrlKeys = new Set(['gubun','idx','actionFlag','isMenuIn','isPopup','isPrint','isAddURL','recently','recently_view','orderby','page','pageSize','psize','allFilter','parent_idx','tabid','aggregate','_chart','_chartFull','dev_mode','first_load','deleted','_parentTotal']);
       for (const [k, v] of _urlSearch) {
         if (!_knownUrlKeys.has(k) && !(k in listParams)) listParams[k] = v;
       }
@@ -1093,9 +1184,14 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
       const dftAf   = dft.get('allFilter') ?? '[]';
       const dftOb   = normalizeOrderby(dft.get('orderby') ?? '');
       const dftRec  = dft.has('recently') ? dft.get('recently') === 'Y' : (menu?.g03 !== 'Y');
-      const dftPs   = Number(dft.get('psize') ?? dft.get('pageSize')) || PAGE_SIZE;
+      // aggregate 모드는 psize 미지정 시 최대값(99999) — LIMIT 으로 잘리면 일부 그룹만 집계돼 소계 건수가 틀어짐.
+      // (최초 진입 pageSize useState 와 동일 규칙)
+      const dftPs   = Number(dft.get('psize') ?? dft.get('pageSize')) || (dft.get('aggregate') ? 99999 : PAGE_SIZE);
       const dftColF = parseUrlColFilters(dftAf);
-      setFilterValues({});
+      // 툴바 필터(s/t/w)는 add_url 기본 allFilter 의 toolbar_ 값으로 복원
+      // → load() 에 넘기는 toolbarOnlyAf(dftAf) 와 일치시켜 쿼리와 드롭다운 표시가 어긋나지 않게.
+      //   (예: add_url 에 toolbar_zwoldo=2026-05 가 있으면 월도 드롭다운도 2026-05 로 표시)
+      setFilterValues(parseUrlFilter(dftAf));
       setColFilters(dftColF);
       colFiltersRef.current = dftColF;
       setOrderby(dftOb);
@@ -1201,6 +1297,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
     if (loading) return;                                // 아직 로딩 중이면 무시
     if (rows.length === 0 || fields.length === 0) return;
     if (!onToggleViewRef.current) return;
+    if (effOnlyList) return;   // *_only_list / _onlyList: 폼 자동열기 안 함
     autoOpenDone.current = true;
     const _pk0cw        = parseInt(fields[0]?.col_width ?? '0', 10);
     const _pkAlias      = fields[0]?.alias_name ?? 'idx';
@@ -1361,7 +1458,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
     // cell-html 안의 data-mis-action / data-mis-iframe / data-opentab 버튼은 셀 선택을 트리거하지 않음
     // (mousedown 시 셀 선택 setState → 재렌더로 dangerouslySetInnerHTML 의 버튼 DOM 이 detach 되어
     //  뒤이은 click 이 document capture 핸들러에 도달 못하는 문제 방지)
-    if (e.target.closest && (e.target.closest('[data-mis-action]') || e.target.closest('[data-mis-iframe]') || e.target.closest('[data-opentab]'))) {
+    if (e.target.closest && (e.target.closest('[data-mis-action]') || e.target.closest('[data-mis-iframe]') || e.target.closest('[data-opentab]') || e.target.closest('[data-detail]'))) {
       return;
     }
     // data-mis-nolink — 셀이 PK 처럼 동작 (뷰 진입) 하는 것을 차단. 셀 선택은 허용.
@@ -1396,11 +1493,20 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
     // 전체 선택(Ctrl+A)인 경우 헤더 행 포함
     const isAll = r.r1 === 0 && r.r2 === rows.length - 1
                && r.c1 === 0 && r.c2 === listFields.length - 1;
+    // 선택이 맨 왼쪽(첫 데이터 컬럼)부터면 NO(행번호) 컬럼도 함께 복사 (Ctrl+A 포함). 그리드 표시 규칙과 동일.
+    const includeNo = r.c1 === 0;
+    const noOf = ri => {
+      const row = rows[ri];
+      if (row?.__agg_type) return row.__agg_type === 'total' ? '합계' : '소계';
+      return String(total > 0 ? (total - (page - 1) * pageSize - ri) : (ri + 1));
+    };
+
     if (isAll) {
       const headers = listFields.slice(r.c1, r.c2 + 1).map(f => {
         const t = parseColTitle(f.col_title ?? f.alias_name ?? '');
         return t.r2 ?? t.r1 ?? f.alias_name ?? '';
       });
+      if (includeNo) headers.unshift('No');
       textLines.push(headers.join('\t'));
       htmlRows.push('<tr>' + headers.map(h => `<th>${esc(h)}</th>`).join('') + '</tr>');
     }
@@ -1409,6 +1515,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
       const row = rows[ri];
       if (!row) continue;
       const cells = [];
+      if (includeNo) cells.push(noOf(ri));
       for (let ci = r.c1; ci <= r.c2; ci++) {
         const f = listFields[ci];
         if (!f) continue;
@@ -1584,19 +1691,46 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
     // input/textarea 내부 키이벤트는 통과 (Ctrl+A=텍스트 전체선택, Ctrl+C=텍스트복사 등 브라우저 기본 보존)
     const tgt = e.target;
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+    // 현재 셀 좌표 — 포커스된 셀(td) 우선, 없으면 선택셀(selFocus)
+    const _curCell = () => {
+      const td = tgt?.closest?.('td[data-ci]');
+      if (td) { const ri = parseInt(td.dataset.ri, 10), ci = parseInt(td.dataset.ci, 10);
+                return (isNaN(ri) || isNaN(ci)) ? null : { ri, ci }; }
+      return selFocus ? { ri: selFocus.ri, ci: selFocus.ci } : null;
+    };
+    // Tab → 다음 Tab대상(목록편집/버튼/idx) 셀로. 일반셀은 건너뜀(화살표로 이동). (Shift+Tab=좌)
+    if (e.key === 'Tab') {
+      const cur = _curCell();
+      if (!cur) return;                       // 그리드 밖 → 브라우저 기본 유지
+      e.preventDefault();
+      tabMove(cur.ri, cur.ci, e.shiftKey ? -1 : 1);
+      return;
+    }
+    // Enter → idx(link) 셀에서 우측 뷰폼 열기 (링크 표시가 있는 경우에만)
+    if (e.key === 'Enter') {
+      const cur = _curCell();
+      if (cur && cellTabKind(cur.ri, cur.ci) === 'link') {
+        e.preventDefault();
+        const row = rows[cur.ri] || {};
+        const rPk = usePkForLink ? (row[pkAlias] ?? row.idx) : getLinkVal(row);
+        if (clickMode === 'modify') onModify?.(rPk, getLinkVal(row));
+        else onToggleView?.(rPk, getLinkVal(row));
+        return;
+      }
+    }
     // Esc → 블록 선택 해제 (스크롤바 조작으로는 절대 해제되지 않으므로 명시적 해제 수단 제공)
     if (e.key === 'Escape') {
       setSelAnchor(null); setSelFocus(null);
       return;
     }
-    // Ctrl+C 복사
-    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+    // Ctrl+C 복사 — e.code(물리 키) 기준: 한글 IME 모드에서도 동작 (e.key 는 'ㅊ' 로 바뀜)
+    if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyC' || e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
       handleCopy();
       return;
     }
-    // Ctrl+A 전체선택
-    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+    // Ctrl+A 전체선택 — 동일하게 e.code 기준 (한글 모드 대응)
+    if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyA' || e.key === 'a' || e.key === 'A')) {
       e.preventDefault();
       if (rows.length > 0 && listFields.length > 0) {
         setSelAnchor({ ri: 0, ci: 0 });
@@ -1633,7 +1767,8 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   // 공식: width = N × 5.51 + 39
   function getColWidth(f) {
     const chars = Math.abs(parseInt(f.col_width ?? '10', 10));
-    return Math.max(55, Math.ceil(chars * 5.51 + 39));
+    // col_width=1 (초협소 컬럼: 간트 날짜칸 등) 은 55px 바닥 우회 → 28px
+    return chars === 1 ? 28 : Math.max(55, Math.ceil(chars * 5.51 + 39));
   }
 
   function handleResizeStart(e, alias, currentDisplayWidth) {
@@ -1665,10 +1800,16 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   async function handleExcel() {
     try {
       const af = mergeExternalAndUiFilters(urlParams.current.get('allFilter') ?? '[]', filterValues, fields);
+      // 컬럼 헤더 필터(colFilters)도 병합 — load() 와 동일. (안 하면 엑셀이 컬럼필터를 무시해 건수가 안 줄어듦)
+      const colParts = Object.entries(colFiltersRef.current)
+        .map(([alias, raw]) => parseColFilter(alias, raw)).filter(Boolean);
+      const finalAf = colParts.length > 0
+        ? JSON.stringify([...(JSON.parse(af || '[]')), ...colParts])
+        : af;
       const urlSearch = new URLSearchParams(window.location.search);
       const agg = urlSearch.get('aggregate');
       const excelParams = {
-        page: 1, pageSize: 10000, orderby, allFilter: af,
+        page: 1, pageSize: 10000, orderby, allFilter: finalAf,
         recently: recently ? 'Y' : 'N',
       };
       if (agg) excelParams.aggregate = agg;
@@ -1878,13 +2019,19 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
    */
   function handleXlsFast() {
     const af = mergeExternalAndUiFilters(urlParams.current.get('allFilter') ?? '[]', filterValues, fields);
+    // 컬럼 헤더 필터(colFilters)도 병합 — handleExcel/load() 와 동일. (안 하면 xls 가 컬럼필터를 무시해 건수가 안 줄어듦)
+    const colParts = Object.entries(colFiltersRef.current)
+      .map(([alias, raw]) => parseColFilter(alias, raw)).filter(Boolean);
+    const finalAf = colParts.length > 0
+      ? JSON.stringify([...(JSON.parse(af || '[]')), ...colParts])
+      : af;
     const qs = new URLSearchParams({
       act:        'list',
       gubun:      String(gubun),
       page:       '1',
       pageSize:   '999999',
       orderby:    orderby ?? '',
-      allFilter:  af,
+      allFilter:  finalAf,
       recently:   recently ? 'Y' : 'N',
       _xlsStream: '1',
     });
@@ -1944,19 +2091,26 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
         noCell = `<td class="no-col">${total > 0 ? (total - (page - 1) * pageSize - ri) : dataIdx}</td>`;
       }
       const trCls = aggType ? ' class="agg-row"' : '';
-      const tds = listFields.map(f => `<td${alignStyle(f)}>${String(row[f.alias_name ?? ''] ?? '')}</td>`).join('');
+      // 표시용 HTML(__html: 이미지·다단 줄바꿈 등)이 있으면 그리드와 동일하게 우선 사용, 없으면 원본값
+      const tds = listFields.map(f => {
+        const alias = f.alias_name ?? '';
+        const cellHtml = row.__html?.[alias];
+        const inner = (cellHtml != null && cellHtml !== '') ? String(cellHtml) : String(row[alias] ?? '');
+        return `<td${alignStyle(f)}>${inner}</td>`;
+      }).join('');
       return `<tr${trCls}>${noCell}${tds}</tr>`;
     }).join('');
     const title = menu?.menu_name ?? '목록';
     const win = window.open('', '_blank', 'width=1000,height=700');
     win.document.write(`<!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8"><title>${title}</title>
+<html lang="ko"><head><meta charset="utf-8"><base href="${location.origin}/"><title>${title}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Malgun Gothic',Arial,sans-serif;font-size:11px;padding:14px;padding-top:56px}
 h2{font-size:13px;font-weight:bold;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;table-layout:auto}
-th,td{border:1px solid #bbb;padding:3px 5px;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+th,td{border:1px solid #bbb;padding:3px 5px;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;vertical-align:top}
+td img{max-width:160px;max-height:80px;height:auto;object-fit:contain;display:inline-block;vertical-align:middle}
 thead th{background:#f0f0f0;font-weight:bold}
 .no-col{width:42px;text-align:center;color:#666;font-variant-numeric:tabular-nums}
 .no-col.agg{color:#111;font-weight:bold}
@@ -2022,10 +2176,21 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
             .slice(0, 8)
             .map(k => ({ alias_name: k, col_title: k, col_width: 10 }))
         : []);
+  // Tab 이동(다음 셀 편집)에서 콜백이 최신 listFields 를 참조하도록 ref 동기화
+  listFieldsRef.current = listFields;
 
   // 필터 필드: grid_is_handle ∈ {s, t, w}
   // popup 모드 (isPopup=Y) — embed iframe 안에선 상단 사용자 필터 영역 자체를 숨김
   const _isPopupMode = (urlParams.current?.get('isPopup') ?? '') === 'Y';
+  // aggregate(부분합/부분합전용) 모드: NO 컬럼에 '소계/합계 + 건수' 를 함께 표시하므로 폭을 넓힘
+  const _aggActive = !!(urlParams.current?.get('aggregate'));
+  const _noColW = _aggActive ? 82 : 60;
+  // 소계 드릴다운 팝업: 어미창 전체합계 값 (있으면 팝업의 합계행을 이 값으로 표시)
+  const _parentTotal = (() => {
+    if (!_isPopupMode) return null;
+    try { const s = urlParams.current?.get('_parentTotal'); return s ? JSON.parse(s) : null; }
+    catch { return null; }
+  })();
   const filterFields = _isPopupMode
     ? []
     : fields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? ''));
@@ -2084,7 +2249,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
   //   2) 자연 합 > 컨테이너 폭 → 모든 컬럼 균등 축소 (0.85 까지). 그 이하는 가로 스크롤 (가독성 보호)
   // table-fixed/border-collapse 측정오차 + scrollbar gutter 흡수용 4px 안전마진.
   const FLEX_CHAR_THRESHOLD = 30;
-  const _fixedColsSum = (isSimpleList ? 0 : 45) + 60;
+  const _fixedColsSum = (isSimpleList ? 0 : 45) + _noColW;
   const _narrowFieldsSum = listFields.reduce((s, f) => {
     const chars = Math.abs(parseInt(f.col_width ?? '10', 10));
     return s + (chars < FLEX_CHAR_THRESHOLD ? getColWidth(f) : 0);
@@ -2138,7 +2303,9 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
   autoScaleRef.current = 1;
   // 실제 렌더될 컬럼 폭의 합 (사용자 드래그 override 반영). 드래그 시 이 합이 변하면 테이블도 함께 확장/축소돼야
   // 브라우저가 "table-fixed + 고정폭" 때문에 cols 를 비례 축소하지 않음.
-  const _actualFixedSum = sw(isSimpleList ? 0 : 45) + sw(60);
+  const _actualFixedSum = sw(isSimpleList ? 0 : 45) + sw(_noColW);
+  // 좌측 틀고정: No 컬럼의 left 오프셋 = 체크박스 컬럼 폭(없으면 0). 체크 컬럼은 left:0(CSS 기본).
+  const _frozenNoLeft = isSimpleList ? 0 : sw(45);
   const _actualFieldsSum = listFields.reduce((s, f) => s + sw(getColWidth(f), f), 0);
   const _actualColsSum = _actualFixedSum + _actualFieldsSum;
   // 테이블 명시 너비:
@@ -2202,6 +2369,14 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
   const { parsed, groups } = hasGroupHeader
     ? computeHeaderGroups(listFields)
     : { parsed: listFields.map(f => ({ r1: null, r2: f.col_title ?? f.alias_name ?? '', field: f })), groups: [] };
+  // 명명 그룹(필터/적용 등) 영역 경계에 굵은 세로줄 — 그룹 첫 컬럼 왼쪽 / 끝 컬럼 오른쪽
+  const grpL = new Set(), grpR = new Set();
+  (groups ?? []).forEach(g => {
+    if (g.r1 != null && g.r1 !== '') { grpL.add(g.startIdx); grpR.add(g.startIdx + g.colspan - 1); }
+  });
+  const GRP_L = ' [border-left:3px_solid_var(--color-text-3)]';
+  const GRP_R = ' [border-right:3px_solid_var(--color-text-3)]';
+  const grpCls = (ci) => (grpL.has(ci) ? GRP_L : '') + (grpR.has(ci) ? GRP_R : '');
 
   if (error) return (
     <div className="flex-1 px-5 py-5 text-danger text-base">{error}</div>
@@ -2473,7 +2648,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
         {/* 우측: 내용보기 */}
         {!isMobile && (
           <div className="relative flex-shrink-0 flex items-center gap-1 px-3 py-2">
-            {!panelOpen && !noPanelBtn && !onlyListMode && <>
+            {!panelOpen && !noPanelBtn && !effOnlyList && <>
               <span className="text-border-base mx-0.5 select-none">|</span>
               {(!onPanelSizeClick || isNarrow) ? (
                 <button
@@ -2591,7 +2766,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
           data-autoscale={autoScale.toFixed(3)} data-tablew={tableW} data-colsum={_allNativeSum}>
           <colgroup>
             {!isSimpleList && <col className="mis-check-col" style={{width: sw(45) + 'px'}} />}
-            <col style={{width: sw(60) + 'px'}} />
+            <col style={{width: sw(_noColW) + 'px'}} />
             {listFields.map(f => (
               <col key={f.alias_name ?? ''} style={{width: sw(getColWidth(f), f) + 'px'}} />
             ))}
@@ -2604,7 +2779,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                   {!isSimpleList && <th rowSpan={2} className={thCls + ' text-center mis-check-col'} style={{width:sw(45),maxWidth:sw(45)}}>
                     <input type="checkbox" checked={rows.length > 0 && checkedRows.size === rows.length} onChange={handleCheckAll} className="cursor-pointer" tabIndex={-1} />
                   </th>}
-                  <th rowSpan={2} className={thCls + ' text-center mis-no-col'} style={{width:sw(60),maxWidth:sw(60)}}
+                  <th rowSpan={2} className={thCls + ' text-center mis-no-col'} style={{width:sw(_noColW),maxWidth:sw(_noColW),'--mis-fz-left':_frozenNoLeft+'px'}}
                       onClick={toggleFilterRow} title={showFilterRow ? '필터 숨기기' : '필터 보기'}>
                     <span className="inline-flex items-center gap-1 justify-center">
                       <span className={showFilterRow ? 'text-link' : hasAnyColFilter ? 'text-danger' : 'text-muted'}>No</span>
@@ -2641,7 +2816,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                     }
                     // 그룹 라벨 띠 — colSpan, 컬럼 헤더와 다른 톤 (밝은 surface, 가운데정렬, 작은 글자)
                     return (
-                      <th key={'g' + gi} colSpan={g.colspan} className={groupBandThCls}>
+                      <th key={'g' + gi} colSpan={g.colspan} className={groupBandThCls + GRP_L + GRP_R}>
                         {g.r1 || ''}
                       </th>
                     );
@@ -2661,7 +2836,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                       const hasColFilter = !!(colFilters[alias]?.trim());
                       const al = alignClass(f.grid_align);
                       return (
-                        <th key={alias} className={subThCls + (al ? ' ' + al : '')}
+                        <th key={alias} className={subThCls + (al ? ' ' + al : '') + grpCls(fi)}
                             style={{ width: sw(cw, f) + 'px' }}
                             title={f.col_title ?? alias}
                             onClick={e => handleSort(alias, e)}>
@@ -2682,7 +2857,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                 {!isSimpleList && <th className={thCls + ' text-center mis-check-col'} style={{width:sw(45),maxWidth:sw(45)}}>
                   <input type="checkbox" checked={rows.length > 0 && checkedRows.size === rows.length} onChange={handleCheckAll} className="cursor-pointer" tabIndex={-1} />
                 </th>}
-                <th className={thCls + ' text-center mis-no-col'} style={{width:sw(60),maxWidth:sw(60)}}
+                <th className={thCls + ' text-center mis-no-col'} style={{width:sw(_noColW),maxWidth:sw(_noColW),'--mis-fz-left':_frozenNoLeft+'px'}}
                     onClick={toggleFilterRow} title={showFilterRow ? '필터 숨기기' : '필터 보기'}>
                   <span className="inline-flex items-center gap-1 justify-center">
                     <span className={showFilterRow ? 'text-link' : hasAnyColFilter ? 'text-danger' : 'text-muted'}>No</span>
@@ -2714,10 +2889,41 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
             {/* 컬럼 헤더 인라인 필터 행 — 2-row 헤더면 그룹 띠(28px) 만큼 더 밀림 */}
             <tr ref={filterRowRef} className={'border-b border-border-base' + (showFilterRow ? '' : ' hidden')} style={{position:'sticky',top: hasGroupHeader ? 64 : 36, zIndex:9}}>
               {!isSimpleList && <td className="px-1 py-0.5 bg-surface-2 border-r border-border-base mis-check-col" style={{width:sw(45),maxWidth:sw(45)}} />}
-              <td className="px-1 py-0.5 bg-surface-2 border-r border-border-base" style={{width:sw(60),maxWidth:sw(60)}} />
+              <td className="px-1 py-0.5 bg-surface-2 border-r border-border-base mis-no-col" style={{width:sw(_noColW),maxWidth:sw(_noColW),'--mis-fz-left':_frozenNoLeft+'px'}} />
               {listFields.map(f => {
                 const alias = f.alias_name ?? '';
                 const cw = getColWidth(f);
+                // 체크박스 컬럼(보호/중복 등)은 자유입력 대신 옵션박스(전체/체크/미체크).
+                //   값은 colFilters 에 그대로 저장 → parseColFilter·URL 왕복 호환(=ON / <>ON). boolean=1, 그 외 char=Y.
+                const _ctl = (f.grid_ctl_name ?? '').trim();
+                if (_ctl === 'check' || _ctl === 'checkbox') {
+                  const onMark = f.schema_type === 'boolean' ? '1' : 'Y';
+                  const raw = (colFilters[alias] ?? '').trim();
+                  const isChk = raw === `=${onMark}` || raw === onMark || raw === '1' || raw === 'Y' || raw === 'y';
+                  const selVal = raw === '' ? '' : (isChk ? `=${onMark}` : `<>${onMark}`);
+                  return (
+                    <td key={alias} className="px-1 py-0.5 bg-surface border-r border-border-base" style={{ maxWidth: sw(cw, f) + 'px' }}>
+                      <select
+                        className="w-full h-5 px-0.5 text-xs bg-surface-2 border border-border-base rounded text-primary outline-none focus:border-accent transition-colors cursor-pointer"
+                        value={selVal}
+                        onChange={e => {
+                          const nv = e.target.value;
+                          const n = { ...colFiltersRef.current };
+                          if (nv === '') delete n[alias]; else n[alias] = nv;
+                          colFiltersRef.current = n;
+                          setColFilters(n);
+                          colFilterSearchRef.current?.();
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        onMouseDown={e => e.stopPropagation()}
+                      >
+                        <option value="">전체</option>
+                        <option value={`=${onMark}`}>체크</option>
+                        <option value={`<>${onMark}`}>미체크</option>
+                      </select>
+                    </td>
+                  );
+                }
                 return (
                   <td key={alias} className="px-1 py-0.5 bg-surface border-r border-border-base" style={{ maxWidth: sw(cw, f) + 'px' }}>
                     <input
@@ -2766,7 +2972,9 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                   데이터가 없습니다.
                 </td>
               </tr>
-            ) : rows.map((row, ri) => {
+            ) : (_parentTotal ? rows.map(r => (r.__agg_type === 'total'
+                  ? { ...r, ...(_parentTotal.values || {}), __count: _parentTotal.count ?? r.__count, __html: { ...(r.__html || {}), ...(_parentTotal.html || {}) } }
+                  : r)) : rows).map((row, ri) => {
               // PK가 숨겨진 경우(usePkForLink=false) → 첫 visible 필드값을 식별자로 사용
               const rowPk      = usePkForLink ? (row[pkAlias] ?? row.idx) : getLinkVal(row);
               const rowLinkVal = getLinkVal(row);
@@ -2787,25 +2995,22 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
               const isAgg = !!aggType;
               const aggRows = row.__agg_rows; // simple 모드일 때만 첨부됨
               const aggClickable = isAgg && Array.isArray(aggRows) && aggRows.length > 0;
-              // popup 모드(embed iframe): 합계(total) 행 숨김 — 부모창의 합계와 중복되므로
-              if (_isPopupMode && aggType === 'total') return null;
+              // popup 모드(embed iframe): 합계(total) 행은 기본 숨김(필터된 합계=소계 중복).
+              //   단 _parentTotal 이 있으면(소계 드릴다운) 어미창 전체합계로 덮어쓴 합계행을 노출.
+              if (_isPopupMode && aggType === 'total' && !_parentTotal) return null;
               const aggRowCls = aggType === 'total'   ? 'bg-surface-2 font-bold'
                               : aggType === 'subtotal' ? 'bg-surface-2/60 font-semibold'
                               : '';
-              return (
-              <tr key={row.idx ?? `__agg_${ri}`}
-                  className={`transition-colors ${isAgg ? aggRowCls : rowBgCls}${aggClickable ? ' cursor-pointer hover:bg-accent-dim' : ''}`}
-                  onClick={aggClickable ? () => {
-                    // aggregate row 클릭 → 같은 프로그램을 aggregate=auto + allFilter 로 새 탭으로 오픈
-                    // (mis:openTab dispatch — Layout.jsx 가 forceNew=true 로 받아 항상 새 탭)
-                    // 주의: urlParams.current 는 mount 시점 스냅샷이라 헤더 클릭으로 정렬이 바뀌어도 stale.
-                    //       정렬 기준은 live state(orderby) 사용, gubun 은 prop 사용.
+              // 소계/합계 팝업 — 행 전체가 아니라 'NO' 칸의 소계/합계 라벨 링크 클릭으로만 연다.
+              //   (나머지 셀은 선택/복사 보존. 필터 = 어미창 정렬항목 값 → 'N건' 클릭 시 정확히 N건.)
+              const openAggPopup = aggClickable ? () => {
+                    // 주의: urlParams.current 는 mount 스냅샷이라 stale → 정렬은 live state(orderby), gubun 은 prop.
                     const orderbyParam = orderby || new URLSearchParams(window.location.search).get('orderby') || '';
                     const curGubun = Number(gubun || new URLSearchParams(window.location.search).get('gubun') || 0);
                     const groupFields = orderbyParam.split(',').map(s => s.replace(/^-/, '').trim()).filter(Boolean);
                     const firstRow = aggRows[0] || {};
-                    // 빈/NULL 값은 operator='isNull' 로 — eq 로는 NULL 매칭 안 됨
-                    const filters = groupFields.map(f => {
+                    // 빈/NULL 값은 operator='isNull' 로 — eq 로는 NULL 매칭 안 됨. (합계행은 전체 → 필터 없음)
+                    const filters = aggType === 'total' ? [] : groupFields.map(f => {
                       const v = firstRow[f];
                       if (v === null || v === undefined || v === '') {
                         return { field: f, operator: 'isNull', value: '' };
@@ -2813,7 +3018,6 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                       return { field: f, operator: 'eq', value: String(v) };
                     });
 
-                    // 탭 라벨: 그룹값 / 그룹값 ... (N건)
                     const labelParts = groupFields.map(f => {
                       const v = firstRow[f];
                       return (v === null || v === undefined || v === '') ? '(공백)' : String(v).trim();
@@ -2822,25 +3026,40 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                       ? `합계 상세 (${aggRows.length}건)`
                       : `${labelParts.join(' / ') || '소계'} (${aggRows.length}건)`;
 
-                    // addUrl 구성 (orderby/recently/aggregate/allFilter)
-                    const extra = new URLSearchParams();
-                    if (orderbyParam) extra.set('orderby', orderbyParam);
-                    extra.set('recently', 'N');
-                    extra.set('aggregate', 'auto');
-                    if (aggType === 'subtotal' && filters.length) {
-                      extra.set('allFilter', JSON.stringify(filters));
+                    // 어미창 합계행 → 팝업 맨 끝 '합계' 행으로 그대로 표시.
+                    //   값(values) + 표시HTML(html: 집계셀은 __html 로 렌더되므로 필수) + 건수(count) 모두 전달.
+                    const parentTotalRow = rows.find(r => r.__agg_type === 'total') || null;
+                    let parentTotal = null;
+                    if (parentTotalRow) {
+                      const values = {}, html = {};
+                      listFields.forEach(f => {
+                        const a = f.alias_name;
+                        if (a in parentTotalRow) values[a] = parentTotalRow[a];
+                        if (parentTotalRow.__html && a in parentTotalRow.__html) html[a] = parentTotalRow.__html[a];
+                      });
+                      parentTotal = { values, html, count: parentTotalRow.__count ?? 0 };
                     }
 
-                    window.dispatchEvent(new CustomEvent('mis:openTab', {
-                      detail: {
-                        gubun: curGubun,
-                        label,
-                        addUrl: '&' + extra.toString(),
-                      },
+                    // 팝업 URL: 그룹 필터 + aggregate=auto(실데이터 + 그룹 소계). isPopup=Y → 초기화/부분합전용/차트 숨김.
+                    const p = new URLSearchParams();
+                    p.set('gubun', String(curGubun));
+                    p.set('isMenuIn', 'S');
+                    p.set('isPopup', 'Y');
+                    p.set('recently', 'N');
+                    p.set('aggregate', 'auto');
+                    if (orderbyParam) p.set('orderby', orderbyParam);
+                    if (filters.length) p.set('allFilter', JSON.stringify(filters));
+                    if (parentTotal) p.set('_parentTotal', JSON.stringify(parentTotal));
+                    const url = `${window.location.pathname}?${p.toString()}`;
+                    window.dispatchEvent(new CustomEvent('mis:openIframePopup', {
+                      detail: { url, title: label, full: true },
                     }));
-                  } : undefined}>
+                  } : null;
+              return (
+              <tr key={row.idx ?? `__agg_${ri}`}
+                  className={`transition-colors ${isAgg ? aggRowCls : rowBgCls}`}>
                 {!isSimpleList && (isAgg
-                  ? <td className={tdCls} style={{width:sw(45),maxWidth:sw(45)}}></td>
+                  ? <td className={tdCls + ' mis-check-col'} style={{width:sw(45),maxWidth:sw(45)}}></td>
                   : (row.__readonly === 1 || row.__readonly === '1' || row.__readonly === true)
                     ? <td className={tdCls + ' text-center mis-check-col'} style={{width:sw(45),maxWidth:sw(45)}} title="읽기전용">
                         <span className="text-xs text-muted">🔒</span>
@@ -2848,9 +3067,16 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                     : <td className={tdCls + ' text-center cursor-pointer mis-check-col'} style={{width:sw(45),maxWidth:sw(45)}} onClick={e => { e.stopPropagation(); handleCheckRow(row.idx ?? row[pkAlias], e); }}>
                         <input type="checkbox" checked={checkedRows.has(row.idx ?? row[pkAlias])} readOnly className="pointer-events-none" />
                       </td>)}
-                <td className={tdCls + (isAgg ? ' text-center text-primary text-xs font-bold' : ' text-center text-muted text-xs tabular-nums')} style={{width:sw(60),maxWidth:sw(60)}}>
+                <td className={tdCls + ' mis-no-col' + (isAgg ? ' text-primary text-xs font-bold' : ' text-center text-muted text-xs tabular-nums') + (!isAgg && isInSel && selRange && selRange.c1 === 0 ? ' !bg-accent-dim' : '')} style={{width:sw(_noColW),maxWidth:sw(_noColW),'--mis-fz-left':_frozenNoLeft+'px'}}>
                   {isAgg
-                    ? (aggType === 'total' ? '합계' : '소계')
+                    ? <span className="flex items-center justify-between gap-1 whitespace-nowrap px-0.5">
+                        <span
+                          className={openAggPopup ? 'text-link underline underline-offset-2 cursor-pointer hover:text-accent-hover' : ''}
+                          onClick={openAggPopup ?? undefined}
+                          title={openAggPopup ? '클릭하면 상세 팝업' : undefined}
+                        >{aggType === 'total' ? '합계' : '소계'}</span>
+                        <span className="tabular-nums font-normal text-secondary">{Number(row.__count ?? 0).toLocaleString()}건</span>
+                      </span>
                     : (total - (page - 1) * pageSize - ri)}
                 </td>
                 {listFields.map((f, ci) => {
@@ -2860,10 +3086,12 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                   const val      = hasPreview ? previewVal : (row[alias] ?? '');
                   const html     = hasPreview ? null : row.__html?.[alias]; // 미리보기 중에는 __html 무시
                   const noLink   = !!(html && /data-mis-nolink/.test(html)); // __html 안에 data-mis-nolink 가 있으면 view 진입 비활성
+                  const noEdit   = !!(html && /data-mis-noedit/.test(html)); // __html 안에 data-mis-noedit 가 있으면 인라인편집 비활성 (행별 조건부)
                   // 클릭 가능 링크 셀: 그리드에 노출된 첫 번째 셀 (URL idx 매칭 필드가 col_width=0 등으로 숨김인 경우 대비)
                   const isLink   = !isAgg && !noLink && alias === clickCellAlias;
                   const cw       = getColWidth(f);
-                  const selected = !isAgg && isCellSelected(ri, ci);
+                  // 집계행 셀도 선택/복사 가능 (소계/합계 값 복사용)
+                  const selected = isCellSelected(ri, ci);
                   const rowReadOnly = (row.__readonly === 1 || row.__readonly === '1' || row.__readonly === true);
                   // max_length 규칙 — 인라인편집은 modify 동작이므로 음수/0 은 편집 불가 (DataForm 과 동일 기준)
                   const _mlGridRaw = parseInt(f.max_length ?? '', 10);
@@ -2873,7 +3101,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                     (f.grid_ctl_name === 'check' || f.grid_ctl_name === 'checkbox') &&
                     String(f.max_length ?? '').endsWith('!')
                   );
-                  const isListEdit = access.write && !isAgg && !_mlGridReadOnly &&
+                  const isListEdit = access.write && !isAgg && !_mlGridReadOnly && !noEdit &&
                     (!rowReadOnly || _isOverrideCheck) &&
                     (f.grid_list_edit === 'Y' || !!fkMapRef.current[alias]);
                   const isCheckEdit = isListEdit && (f.grid_ctl_name === 'check' || f.grid_ctl_name === 'checkbox');
@@ -2885,7 +3113,8 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                   const isTextarea = f.grid_ctl_name === 'textarea';
                   return (
                     <td key={alias}
-                        className={tdCls + (al ? ' ' + al : '') + (selected ? ' !bg-accent-dim' : '') + (isListEdit && !isEditing && !isAttachEdit ? ' cursor-pointer' : '') + (isEditing ? ' !px-0' : '') + ((isTextarea || isAttachEdit) ? ' !h-auto align-top' : '') + ' relative'}
+                        data-ri={ri} data-ci={ci}
+                        className={tdCls + (al ? ' ' + al : '') + grpCls(ci) + (selected ? ' !bg-accent-dim' : '') + (isListEdit && !isEditing && !isAttachEdit ? ' cursor-pointer' : '') + (isEditing ? ' !px-0' : '') + ((isTextarea || isAttachEdit) ? ' !h-auto align-top' : '') + ' relative'}
                         style={{
                           maxWidth: sw(cw, f) + 'px',
                           ...(hasPreview ? {
@@ -2895,8 +3124,8 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                             boxShadow:  'inset 0 0 0 2px #F59E0B', // 주황 보더 링
                           } : {}),
                         }}
-                        onMouseDown={isAgg ? undefined : e => { if (!isEditing) handleCellMouseDown(e, ri, ci); }}
-                        onMouseEnter={isAgg ? undefined : () => { if (!isEditing) handleCellMouseEnter(ri, ci); }}
+                        onMouseDown={e => { if (!isEditing) handleCellMouseDown(e, ri, ci); }}
+                        onMouseEnter={() => { if (!isEditing) handleCellMouseEnter(ri, ci); }}
                         onClick={isAgg ? undefined
                           : isCheckEdit && !isEditing ? () => handleCheckClick(ri, alias, val, rowSavePk, rowReadOnly && _isOverrideCheck, f)
                           : isListEdit && !isCheckEdit && !isAttachEdit && !isEditing && selected ? () => startEdit(ri, alias, val, rowSavePk, row)
@@ -2949,7 +3178,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                               gubun={gubun}
                             />
                           : html
-                          ? (isLink && !onlyListMode
+                          ? (isLink && !effOnlyList
                               ? <span className="text-link cell-html cursor-pointer underline underline-offset-2 hover:text-accent-hover"
                                       dangerouslySetInnerHTML={{ __html: html }}
                                       onClick={e => {
@@ -2968,7 +3197,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                                         }
                                       }} />
                               : <span className="text-primary cell-html" dangerouslySetInnerHTML={{ __html: html }} />)
-                          : isLink && !onlyListMode
+                          : isLink && !effOnlyList
                           ? (() => {
                               // link 셀에서도 schema_type (date^^MM-dd 등) 포맷 적용
                               const display = (val !== null && val !== undefined && val !== '')
@@ -3167,9 +3396,12 @@ function InlineEdit({ field, fkField, value, onChange, onSave, onCancel, saving,
   const ctl = activeField.grid_ctl_name ?? '';
   const rawItems = activeField.items ?? '';
   const isSqlItems = /^\s*select\s+/i.test(rawItems);
+  const isAddItem  = ctl === 'additem'; // 자유입력 콤보: datalist 제안 + 직접 입력
   const staticItems = (!isSqlItems && rawItems) ? parseItems(rawItems) : [];
   const hasPrimeKey = !!(fkField?.prime_key);
-  const isDate = field.schema_type === 'date' || field.schema_type === 'datetime';
+  // schema_type 의 ^^표시포맷(예: date^^MM-dd) 분리해 base 타입으로 판단 → 달력(date input) 노출
+  const _baseSchemaType = String(field.schema_type ?? '').split('^^')[0];
+  const isDate = _baseSchemaType === 'date' || _baseSchemaType === 'datetime';
   // select 에서 값 선택(onChange) 발생 여부 — blur 시 취소/저장 충돌 방지용
   const pickedRef = useRef(false);
 
@@ -3185,18 +3417,19 @@ function InlineEdit({ field, fkField, value, onChange, onSave, onCancel, saving,
   // SQL 기반 items: 서버에서 쿼리 결과 로드
   const [sqlItems, setSqlItems] = useState(null);
   useEffect(() => {
-    if (!isSqlItems || !gubun) return;
+    if ((!isSqlItems && !isAddItem) || !gubun) return;
     api.dropdownItems(gubun, activeField.alias_name).then(res => {
       setSqlItems(Array.isArray(res.data) ? res.data : []);
     }).catch(() => setSqlItems([]));
-  }, [isSqlItems, gubun, activeField.alias_name]);
+  }, [isSqlItems, isAddItem, gubun, activeField.alias_name]);
 
-  const items = hasPrimeKey ? (pkItems ?? []) : isSqlItems ? (sqlItems ?? []) : staticItems;
+  const items = hasPrimeKey ? (pkItems ?? []) : (isSqlItems || isAddItem) ? (sqlItems ?? []) : staticItems;
   const isCheck = ctl === 'check' || ctl === 'checkbox';
-  const isSelect = !isCheck && (hasPrimeKey || isSqlItems || ctl === 'dropdownlist' || ctl === 'dropdownitem' || ctl === 'select' || staticItems.length > 0);
+  const isSelect = !isCheck && !isAddItem && (hasPrimeKey || isSqlItems || ctl === 'dropdownlist' || ctl === 'dropdownitem' || ctl === 'select' || staticItems.length > 0);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') { e.preventDefault(); onSave(e.shiftKey ? 'up' : 'down'); }
+    if (e.key === 'Tab')   { e.preventDefault(); onSave(e.shiftKey ? 'left' : 'right'); }  // 우측 셀로 이동(+편집)
     if (e.key === 'Escape') onCancel();
   };
 
@@ -3219,6 +3452,30 @@ function InlineEdit({ field, fkField, value, onChange, onSave, onCancel, saving,
           disabled={saving}
         />
       </label>
+    );
+  }
+
+  // additem: 자유입력 + 기존값(DISTINCT) datalist 제안 (잠긴 select 가 아니라 편집 가능한 input)
+  if (isAddItem) {
+    const listId = `additem-grid-${gubun}-${activeField.alias_name}`;
+    return (
+      <>
+        <input
+          type="text"
+          list={listId}
+          className="w-full h-row text-xs bg-surface border border-accent rounded px-0.5 text-primary focus:outline-none"
+          value={value}
+          autoComplete="off"
+          onChange={e => onChange(e.target.value)}
+          onBlur={() => onSave()}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          disabled={saving}
+        />
+        <datalist id={listId}>
+          {(sqlItems ?? []).map(o => <option key={o.value} value={o.value} />)}
+        </datalist>
+      </>
     );
   }
 

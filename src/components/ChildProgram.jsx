@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import api from '../api';
+import api, { progModeFlags } from '../api';
 import { showToast } from './Toast';
 import DataGrid from './DataGrid';
 import DataForm from './DataForm';
@@ -138,6 +138,8 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
   // 내용보기가 열리면 그리드는 숨김 (항상 전체화면)
   const showGrid   = !panelOpen;
   const showDetail = panelOpen;
+  // g01 프로그램 모드 플래그 (자식 그리드도 동일 정책 적용)
+  const pm = progModeFlags(menu?.g01, true);
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-surface">
@@ -179,6 +181,14 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
               }}
             >{btn.label}</button>
           ))}
+          {/* 목록인쇄 — 아이콘 버튼(부모 MainContent 의 '목록인쇄' 와 동일 gridRef.print) */}
+          <button
+            className="w-8 h-btn-sm rounded border border-border-base bg-surface text-secondary cursor-pointer hover:bg-surface-2 hover:text-primary transition-colors inline-flex items-center justify-center"
+            onClick={() => gridRef.current?.print?.()}
+            title="목록인쇄"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          </button>
           <button
             className="h-btn-sm px-2 rounded border border-border-base bg-surface text-secondary text-xs cursor-pointer hover:bg-surface-2 hover:text-primary transition-colors"
             onClick={() => { gridRef.current?.reset?.(); setPanelOpen(false); }}
@@ -189,9 +199,9 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
               className="h-btn-sm px-2 rounded border border-border-base bg-surface text-secondary text-xs cursor-pointer hover:bg-surface-2 hover:text-primary transition-colors"
               onClick={() => gridRef.current?.backupToMyList?.({ parent_gubun: parentGubun, parent_idx: parentIdx })}
               title="현재 자식 리스트를 JSON 으로 저장 + 부모메뉴/부모idx 함께 기록"
-            >내 백업에 추가</button>
+            >백업</button>
           )}
-          {menu?.g01 !== 'simple_list' && (
+          {pm.allowDelete && (
             <button
               className="h-btn-sm px-2 rounded border border-danger bg-surface text-danger text-xs font-semibold cursor-pointer hover:bg-danger hover:text-white transition-colors"
               onClick={() => {
@@ -201,7 +211,7 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
               }}
             >선택삭제</button>
           )}
-          {menu?.brief_insert_sql && menu?.g01 !== 'simple_list' && !onlyList && (
+          {menu?.brief_insert_sql && !pm.noInput && !onlyList && (
             <select
               className="h-btn-sm px-1 rounded border border-border-base bg-surface text-secondary text-xs cursor-pointer"
               value=""
@@ -228,7 +238,7 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
               <option value="50">50줄</option>
             </select>
           )}
-          {menu?.g01 !== 'simple_list' && !onlyList && (
+          {!pm.noInput && !onlyList && (
             <button
               className="h-btn-sm px-3 rounded bg-accent text-white text-sm border-0 cursor-pointer hover:bg-accent-hover transition-colors"
               onClick={openWrite}
@@ -248,8 +258,8 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
               gubun={childGubun}
               user={user}
               menu={menu}
-              onToggleView={onlyList ? undefined : handleToggleView}
-              onModify={onlyList ? null : openModify}
+              onToggleView={(onlyList || pm.noFormOpen) ? undefined : handleToggleView}
+              onModify={(onlyList || pm.noFormOpen) ? null : openModify}
               panelOpen={panelOpen}
               panelSize={4}
               onPanelSizeClick={null}
@@ -308,11 +318,12 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
                 idx={currentIdx}
                 mode={panelMode}
                 user={user}
+                menuG01={menu?.g01}
                 onSaved={handleSaved}
                 onCancel={handleCancel}
                 onSaveSql={handleSaveSql}
                 onModify={handleFormModify}
-                onDelete={handleDeleted}
+                onDelete={pm.allowDelete ? handleDeleted : null}
                 activeTab={formActiveTab}
                 onTabChange={setFormActiveTab}
                 onTabsChange={tabs => {
@@ -476,11 +487,11 @@ function ChildBriefPopup({ gubun, user, menu, parentIdx, minIdx, count: initialC
             <div className="flex-1 overflow-auto p-3">
               <DataForm
                 key={`cbrief-${gubun}-${currentIdx}-${panelMode}`}
-                gubun={gubun} idx={currentIdx} mode={panelMode} user={user}
+                gubun={gubun} idx={currentIdx} mode={panelMode} user={user} menuG01={menu?.g01}
                 onSaved={() => { setPanelMode('modify'); gridRef.current?.reload?.(); }}
                 onCancel={() => setPanelOpen(false)}
                 onModify={() => setPanelMode('modify')}
-                onDelete={() => { setPanelOpen(false); gridRef.current?.reload?.(); }}
+                onDelete={pm.allowDelete ? () => { setPanelOpen(false); gridRef.current?.reload?.(); } : null}
               />
             </div>
           </div>

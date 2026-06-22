@@ -17,7 +17,10 @@ export default function EnvManageNotice({ user }) {
   useEffect(() => {
     if (!user || user.uid !== 'gadmin') return;
     const cfg = (typeof window !== 'undefined' && window.__APP_CONFIG__) || {};
-    if (cfg.envTouched === true) return;             // 이미 저장한 흔적 있음
+    // 진짜 '미설정(fresh install)' = index.php 가 명시적으로 envTouched=false 일 때만 안내.
+    //   - true(.env 저장흔적 있음) / undefined(구버전 index.php·이미 운영중) → 안내 안 함.
+    //   (envmanage 로 .env 를 한 번이라도 저장한 사이트는 마지막 저장일시가 찍히므로 쓸데없이 띄우지 않음)
+    if (cfg.envTouched !== false) return;
     if (sessionStorage.getItem(SS_KEY) === '1') return;  // 이 세션에서 닫음
     setOpen(true);
   }, [user]);

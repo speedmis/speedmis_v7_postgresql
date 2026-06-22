@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import api from './api';
 import Login from './components/Login';
 import Layout from './components/Layout';
@@ -77,6 +77,11 @@ export default function App() {
       e.preventDefault();
       try {
         const detail = JSON.parse(btn.dataset.opentab);
+        // detail.prefill: 대상 프로그램 write 폼에 미리채울 값 (DataForm write 로드 시 sessionStorage 에서 복원).
+        //   예) 6169 목록의 '추가' 버튼 → 6170 입력폼에 행 값 prefill. addUrl 에 actionFlag=write 동반.
+        if (detail.prefill && detail.gubun && !(e.ctrlKey || e.metaKey)) {
+          try { sessionStorage.setItem(`mis_referInsert_${detail.gubun}`, JSON.stringify(detail.prefill)); } catch {}
+        }
         if (e.ctrlKey || e.metaKey) {
           // Ctrl+클릭: 새 창으로 열기
           const g = detail.gubun || '';
@@ -88,6 +93,9 @@ export default function App() {
           if (idx) params.set('idx', idx);
           params.set('isMenuIn', 'Y');
           window.open('?' + params.toString(), '_blank');
+        } else if (window.parent && window.parent !== window) {
+          // 자식 iframe(상세 패널/팝업) 안에는 탭 시스템이 없음 → 부모창에 위임해 거기서 탭 오픈.
+          try { window.parent.postMessage({ type: 'mis:openTabBridge', detail }, '*'); } catch {}
         } else {
           window.dispatchEvent(new CustomEvent('mis:openTab', { detail }));
         }
@@ -95,6 +103,47 @@ export default function App() {
         // (예: 새 탭에서 작업 후 결과를 현재 탭 목록에 반영하기 위함)
         const ms = parseInt(btn.dataset.reloadAfterMs ?? '0', 10);
         if (ms > 0) setTimeout(() => window.dispatchEvent(new CustomEvent('mis:reloadGrid')), ms);
+      } catch {}
+    };
+    document.addEventListener('click', handler, true); // capture phase
+    return () => document.removeEventListener('click', handler, true);
+  }, []);
+
+  // 자식 iframe → 부모창 탭 오픈 브리지 수신 (data-opentab 이 iframe 안에서 눌렸을 때).
+  useEffect(() => {
+    const onBridge = (e) => {
+      if (e?.data?.type !== 'mis:openTabBridge') return;
+      const detail = e.data.detail || {};
+      // prefill 은 부모창 sessionStorage 에 저장해야 새 탭(부모 컨텍스트)에서 복원됨.
+      if (detail.prefill && detail.gubun) {
+        try { sessionStorage.setItem(`mis_referInsert_${detail.gubun}`, JSON.stringify(detail.prefill)); } catch {}
+      }
+      window.dispatchEvent(new CustomEvent('mis:openTab', { detail }));
+    };
+    window.addEventListener('message', onBridge);
+    return () => window.removeEventListener('message', onBridge);
+  }, []);
+
+  // data-detail 버튼 전역 클릭 위임 — 다른 프로그램을 현재 탭 우측 패널(iframe)로 도킹.
+  //   속성: data-detail = JSON {gubun, addUrl, label}. (cell-html 안의 버튼 지원)
+  //   Ctrl/⌘+클릭 시에는 새 창으로(기존 data-opentab 동작과 일관).
+  useEffect(() => {
+    const handler = (e) => {
+      const btn = e.target.closest('[data-detail]');
+      if (!btn) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      try {
+        const detail = JSON.parse(btn.dataset.detail);
+        if (e.ctrlKey || e.metaKey) {
+          const params = new URLSearchParams();
+          if (detail.gubun) params.set('gubun', detail.gubun);
+          params.set('isMenuIn', 'Y');
+          const tail = detail.addUrl ? ('&' + detail.addUrl) : '';
+          window.open('?' + params.toString() + tail, '_blank');
+        } else {
+          window.dispatchEvent(new CustomEvent('mis:openDetailPanel', { detail }));
+        }
       } catch {}
     };
     document.addEventListener('click', handler, true); // capture phase
@@ -172,7 +221,33 @@ export default function App() {
   }, []);
 
   // data-mis-iframe 버튼 — iframe 팝업으로 해당 URL 로딩
-  const [iframePopup, setIframePopup] = useState(null); // { url, title }
+  const [iframePopup, setIframePopup] = useState(null); // { url, title, full }
+  // iframe 팝업 드래그 이동 (상단바로 이동) — translate 오프셋 + 드래그 중 iframe pointer-events 차단
+  const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
+  const [popupDragging, setPopupDragging] = useState(false);
+  const popupDragRef = useRef(null);
+  const startPopupDrag = useCallback((e) => {
+    if (e.button !== 0) return;            // 좌클릭만
+    e.preventDefault();
+    popupDragRef.current = { sx: e.clientX, sy: e.clientY };
+    setPopupPos(prev => {
+      popupDragRef.current.bx = prev.x; popupDragRef.current.by = prev.y;
+      return prev;
+    });
+    setPopupDragging(true);
+    const onMove = (ev) => {
+      const d = popupDragRef.current; if (!d) return;
+      setPopupPos({ x: d.bx + (ev.clientX - d.sx), y: d.by + (ev.clientY - d.sy) });
+    };
+    const onUp = () => {
+      popupDragRef.current = null;
+      setPopupDragging(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, []);
   useEffect(() => {
     const handler = (e) => {
       const btn = e.target.closest('[data-mis-iframe]');
@@ -182,6 +257,7 @@ export default function App() {
       const url   = btn.dataset.misIframe || '';
       const title = btn.dataset.misIframeTitle || btn.textContent || '';
       if (!url) return;
+      setPopupPos({ x: 0, y: 0 });
       setIframePopup({ url, title });
     };
     document.addEventListener('click', handler, true);
@@ -199,6 +275,17 @@ export default function App() {
       document.removeEventListener('click', handler, true);
       window.removeEventListener('message', msg);
     };
+  }, []);
+
+  // 프로그램을 탭 대신 iframe 팝업으로 열기 (예: aggregate=simple.* 부분합전용 메뉴).
+  //   detail: { url, title, full } — full=true 면 거의 꽉찬 크기.
+  useEffect(() => {
+    const h = (e) => {
+      const { url, title, full } = e.detail ?? {};
+      if (url) { setPopupPos({ x: 0, y: 0 }); setIframePopup({ url, title: title || '', full: !!full }); }
+    };
+    window.addEventListener('mis:openIframePopup', h);
+    return () => window.removeEventListener('mis:openIframePopup', h);
   }, []);
 
   const [user, setUser]       = useState(cfg.user ?? null);
@@ -371,17 +458,27 @@ export default function App() {
         >
           <div
             className="bg-surface rounded-lg shadow-pop flex flex-col overflow-hidden"
-            style={{ width: 'min(960px, 94vw)', height: 'min(720px, 92vh)' }}
+            style={{
+              ...(iframePopup.full
+                ? { width: '86vw', height: '84vh' }
+                : { width: 'min(880px, 92vw)', height: 'min(640px, 88vh)' }),
+              transform: `translate(${popupPos.x}px, ${popupPos.y}px)`,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border-base bg-surface-2 flex-shrink-0">
+            <div
+              className="flex items-center justify-between px-4 py-2 border-b border-border-base bg-surface-2 flex-shrink-0 cursor-move select-none"
+              onMouseDown={startPopupDrag}
+              title="상단바를 끌어 이동"
+            >
               <span className="text-sm font-bold text-primary truncate">{iframePopup.title || '편집'}</span>
               <button
                 className="h-btn-sm px-2 rounded border border-border-base bg-surface text-secondary hover:bg-surface-2 cursor-pointer transition-colors"
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => { setIframePopup(null); window.dispatchEvent(new CustomEvent('mis:reloadGrid')); }}
               >✕</button>
             </div>
-            <iframe src={iframePopup.url} title={iframePopup.title || ''} className="flex-1 w-full border-0" />
+            <iframe src={iframePopup.url} title={iframePopup.title || ''} className="flex-1 w-full border-0" style={{ pointerEvents: popupDragging ? 'none' : 'auto' }} />
           </div>
         </div>
       )}

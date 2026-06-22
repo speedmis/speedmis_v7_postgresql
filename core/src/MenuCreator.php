@@ -413,7 +413,7 @@ class MenuCreator
             $hight = 1;
 
             // 컨트롤별 보정
-            if (in_array($ctl, ['dropdownitem','dropdownlist','select'], true) || $type === 'dropdownitem') {
+            if (in_array($ctl, ['dropdownitem','dropdownlist','select','additem'], true) || $type === 'dropdownitem' || $type === 'additem') {
                 // 셀렉트박스는 너무 좁으면 안 좋음
                 $xl = max($xl, 3); $lg = max($lg, 3); $md = max($md, 6); $sm = max($sm, 6);
             } elseif ($ctl === 'textarea' || $type === 'textarea') {

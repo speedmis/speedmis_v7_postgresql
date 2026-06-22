@@ -194,7 +194,8 @@ function formLabel(colTitle, aliasName) {
 
 export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, onModify, onDelete,
                                    activeTab: activeTabProp, onTabChange, onTabsChange, onSqlBtn,
-                                   onSaveSql, filterGroups = null, hideActions = false, menuReadOnly = false }) {
+                                   onSaveSql, filterGroups = null, hideActions = false, menuReadOnly = false,
+                                   menuG01 = '' }) {
   const [fields,   setFields]   = useState([]);
   const [values,   setValues]   = useState({});
   // textdecrypt2: 저장 포함 alias Set ("체크후 저장가능" 체크된 필드만 저장 대상)
@@ -211,6 +212,8 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
   const [printHtml,   setPrintHtml]   = useState(null);
   // 서버 훅 _client_formButtons 로 주입되는 폼 상단 버튼 [{label, realPid, gubun, idx, openFull}]
   const [formButtons, setFormButtons] = useState(null);
+  // 현재 메뉴 접근권한 (_access: {read, write, admin, level}) — '참조입력' 범용버튼 노출 판단용
+  const [access, setAccess] = useState(null);
   const [saveAndNew, setSaveAndNew] = useState(false);
   // 서버 훅 _client_belowForm — 폼 하단 패널 (sibling 이력 등)
   const [belowForm, setBelowForm] = useState(null);
@@ -354,9 +357,12 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
         .then(data => {
           const flds = data.fields ?? [];
           applyFields(flds);
+          setAccess(data._access ?? null);
           const defaults = {};
           flds.forEach(f => { if (f.default_value) defaults[f.alias_name] = f.default_value; });
           // referInsert 로 진입한 경우: sessionStorage 에 저장된 참조 record 의 값으로 prefill
+          // 예약 키 __referMsg: 폼 진입 안내 메시지 (필드값 아님 → 적용 후 분리하여 토스트 표시)
+          let referMsg = '';
           try {
             const prefillKey = `mis_referInsert_${gubun}`;
             const stored = sessionStorage.getItem(prefillKey);
@@ -366,7 +372,9 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
               sessionStorage.removeItem(prefillKey);
             }
           } catch {}
+          if (defaults.__referMsg) { referMsg = String(defaults.__referMsg); delete defaults.__referMsg; }
           setValues(defaults);
+          if (referMsg) showToast(referMsg);
           // write 모드: textdecrypt2 필드는 자동 enable — 신규 사용자는 비번 필수 입력이라
           // '체크후 저장가능' 체크박스를 명시적으로 누르지 않아도 input 이 활성화 + required 검증 정상 작동.
           // (modify 모드는 그대로 default unchecked — 변경 의도일 때만 enable)
@@ -396,6 +404,7 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
       setValues(initValues);
       applyFields(fields);
       setPrintHtml(viewData.printHtml ?? null);
+      setAccess(viewData._access ?? null);
       setFormButtons(viewData._client_formButtons ?? null);
       setBelowForm(viewData._client_belowForm ?? null);
       setSaveAndNew(!!viewData._client_saveAndNew);
@@ -435,8 +444,11 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
       // groupRefsMap 등록 순서 = sort_order 순 = 폼 렌더 순서. 첫 키 = 첫 번째 그룹.
       // 첫 번째 그룹: 컨테이너 맨 위 (scrollTop=0) — 폼 상단 '연결' 버튼 보존, 깜빡임 없음.
       // 두 번째 이후 그룹: 헤더 기준 점프 + 깜빡임.
+      // 전용탭(form_group 끝 '!')은 그 그룹만 단독 렌더 → 위에 다른 그룹이 없으므로
+      // offsetTop 점프 시 어설프게 scrollTop>0 이 된다. 단독 렌더면 맨 위(0)로 취급.
       const groupKeys = Object.keys(groupRefsMap.current);
-      const isFirstGroup = groupKeys[0] === activeTabProp;
+      const liveGroupCount = Object.values(groupRefsMap.current).filter(Boolean).length;
+      const isFirstGroup = liveGroupCount <= 1 || groupKeys[0] === activeTabProp;
 
       if (container && container !== document.body) {
         if (isFirstGroup) {
@@ -697,6 +709,35 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
   //   - renderEditActions: 수정/등록 모드 (저장 / 저장후 새로입력 / 취소·닫기)
   //   - renderViewActions: 조회 모드   (수정·부분수정 / 인쇄 / 삭제 + 읽기전용 뱃지)
   // 두 곳에서 같은 핸들러를 공유하므로 saving/deleting 상태가 양쪽에 즉시 반영됨.
+  // '참조입력' (범용·admin 전용) — 현재 폼의 내용을 그대로 담아 입력(write) 모드로 이동.
+  //   자동/시스템 필드는 제외하고 나머지 값을 sessionStorage 에 보관 → write 진입 시 prefill 복원.
+  //   같은 탭에서 write 모드로 전환 (idx 없이 신규입력). 서버 훅 referInsert 액션과 동일 메커니즘.
+  // 일반 함수 — 이른 return(loading) 이후에 정의되므로 훅(useCallback)으로 만들면 hooks 순서 위반.
+  const doReferInsert = () => {
+    const skip = new Set(['idx','wdate','wdater','lastupdate','lastupdater','useflag','__readonly']);
+    const prefill = {};
+    Object.entries(values || {}).forEach(([k, v]) => {
+      if (skip.has(k)) return;
+      if (v === null || v === undefined) return;
+      prefill[k] = v;
+    });
+    try { sessionStorage.setItem(`mis_referInsert_${gubun}`, JSON.stringify(prefill)); } catch {}
+    window.dispatchEvent(new CustomEvent('mis:openIdxModify', { detail: { mode: 'write' } }));
+  };
+
+  // 참조입력 버튼 노출 조건:
+  //   - admin 권한 + 조회/수정 페이지 (write 는 원본 없음)
+  //   - 일반 CRUD 프로그램만 (g01 공란). 입력없는 모드(simple_list 계열)·only_one_list·gantt·dashboard 는 미노출.
+  const showReferInsert = access?.admin && mode !== 'write' && !(menuG01 ?? '').trim();
+  const referInsertBtn = showReferInsert ? (
+    <button
+      type="button"
+      className="h-btn px-5 rounded bg-surface-2 border border-accent text-primary text-base font-medium cursor-pointer hover:bg-accent hover:text-white transition-colors"
+      onClick={doReferInsert}
+      title="현재 내용을 그대로 담아 새 입력 화면으로 이동"
+    >참조입력</button>
+  ) : null;
+
   const renderEditActions = (wrapClass) => {
     const isPopup = new URLSearchParams(window.location.search).get('isPopup') === 'Y';
     return (
@@ -719,16 +760,16 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
             title="저장 후 새로입력 모드로 전환"
           >저장후 새로입력</button>
         )}
+        {referInsertBtn}
         <button
           type="button"
           className="h-btn px-5 rounded bg-surface border border-border-base text-secondary text-base cursor-pointer hover:bg-surface-2 hover:text-primary transition-colors"
           onClick={() => {
             clearDirty();
-            // 팝업(iframe) 모드면 부모창에 닫기 요청, 아니면 취소(폼 닫기)
+            // 항상 로컬 폼 닫기(상세 패널 iframe: 폼→리스트 복귀). 직접 폼 팝업이면 부모창 닫기도 요청.
+            onCancel?.();
             if (isPopup && window.parent !== window) {
               try { window.parent.postMessage({ type: 'mis:closePopup' }, '*'); } catch {}
-            } else {
-              onCancel?.();
             }
           }}
         >{isPopup ? '닫기' : '취소'}</button>
@@ -749,6 +790,7 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
             onClick={() => onModify?.()}
           >{rowReadOnly ? '부분수정' : '수정'}</button>
         )}
+        {referInsertBtn}
         {rowReadOnly && !_hasOverride && (
           <span className="text-xs px-2 py-1.5 rounded bg-surface-2 text-muted font-bold self-center">🔒 읽기전용 행</span>
         )}
@@ -1000,7 +1042,7 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
                   {/* 필드 그리드 — 빈공간은 흰색(surface) 으로, 셀 사이 1px 갭에는 보더선이 안 보임 */}
                   <div
                     className="grid border border-border-base"
-                    style={{ gridTemplateColumns: 'repeat(12, 1fr)', gridAutoRows: 'minmax(62px, auto)', gridAutoFlow: 'dense', gap: '1px', background: 'var(--color-surface)' }}
+                    style={{ gridTemplateColumns: 'repeat(12, 1fr)', gridAutoRows: 'minmax(62px, auto)', gridAutoFlow: 'row', gap: '1px', background: 'var(--color-surface)' }}
                   >
                 {(() => {
                   // ── subgroup 멤버십 맵 ──
@@ -1297,7 +1339,7 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
                           style={{
                             gridTemplateColumns: 'repeat(12, 1fr)',
                             gridAutoRows: 'minmax(62px, auto)',
-                            gridAutoFlow: 'dense',
+                            gridAutoFlow: 'row',
                             gap: '1px',
                             background: 'var(--color-surface)',
                           }}
@@ -2656,6 +2698,38 @@ function DropdownItemSelect({ gubun, field, val, readOnly, onChange, baseCls, RO
 }
 
 /**
+ * additem — 기존 입력값(DISTINCT)을 datalist 로 제안하면서 동시에 자유 입력(input-text)도 허용하는 콤보박스.
+ *   선택목록(items)이 비어있으면 서버가 해당 컬럼의 DISTINCT 값을, 있으면 그 items 를 옵션으로 반환.
+ */
+function AddItemCombo({ gubun, field, val, onChange, inputCls }) {
+  const alias  = field.alias_name ?? '';
+  const listId = `additem-${gubun}-${alias}`;
+  const [options, setOptions] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    api.dropdownItems(gubun, alias)
+      .then(d => { if (alive) setOptions(Array.isArray(d.data) ? d.data : []); })
+      .catch(() => { if (alive) setOptions([]); });
+    return () => { alive = false; };
+  }, [gubun, alias]);
+  return (
+    <>
+      <input
+        className={inputCls}
+        list={listId}
+        value={val ?? ''}
+        autoComplete="off"
+        maxLength={field.max_length ? (Math.abs(parseInt(field.max_length, 10)) || undefined) : undefined}
+        onChange={e => onChange(alias, e.target.value)}
+      />
+      <datalist id={listId}>
+        {options.map(o => <option key={o.value} value={o.value} label={o.text !== o.value ? o.text : undefined} />)}
+      </datalist>
+    </>
+  );
+}
+
+/**
  * 첨부파일 max_length 파싱
  * '5' → { maxMB: 5, multi: false }
  * '5!' → { maxMB: 5, multi: true }
@@ -3360,6 +3434,11 @@ function renderInput(field, val, readOnly, onChange, hRows = 1, gubun = 0, input
         inputCls={inputCls}
       />
     );
+  }
+
+  if (type === 'additem' || ctlName === 'additem') {
+    if (readOnly) return <span className={ROCls + ' flex items-center' + flexAlignCls}>{val}</span>;
+    return <AddItemCombo gubun={gubun} field={field} val={val} onChange={onChange} inputCls={inputCls} />;
   }
 
   if (type === 'dropdownitem' || ctlName === 'dropdownlist' || ctlName === 'dropdownitem') {

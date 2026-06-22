@@ -76,7 +76,7 @@
 }
 .topbar__menu-btn:hover {
   background: var(--color-nav-hover);
-  color: #fff;
+  color: var(--color-nav-text-hover);
 }
 
 /* 최상위 메뉴 탭 */
@@ -103,11 +103,11 @@
               background var(--transition-fast);
 }
 .topbar__tab:hover {
-  color: #fff;
+  color: var(--color-nav-text-hover);
   background: var(--color-nav-hover);
 }
 .topbar__tab--active {
-  color: #fff;
+  color: var(--color-nav-active-text);
   border-bottom-color: var(--color-nav-logo);
   font-weight: 600;
 }
@@ -201,7 +201,7 @@
 }
 .sidebar__item:hover {
   background: var(--color-nav-hover);
-  color: #fff;
+  color: var(--color-nav-text-hover);
 }
 .sidebar__item--active {
   background: var(--color-nav-active-bg);

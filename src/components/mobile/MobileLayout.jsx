@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import api from '../../api';
+import api, { progModeFlags } from '../../api';
 import { showToast } from '../Toast';
 import MobileCardList from './MobileCardList';
 import MobileFormView from './MobileFormView';
@@ -219,7 +219,7 @@ export default function MobileLayout({ user, menuTree, onLogout, siteTitle, togg
             }}>{btn.label}</button>
           ))}
           {/* +등록 버튼 */}
-          {activeGubun > 0 && viewIdx == null && !onlyList && menu?.g01 !== 'simple_list' && (
+          {activeGubun > 0 && viewIdx == null && !onlyList && !progModeFlags(menu?.g01).noInput && (
             <button className="m-header-action m-header-action--primary" onClick={handleWrite}>
               {buttonText?.write ?? '+등록'}
             </button>

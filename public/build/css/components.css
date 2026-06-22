@@ -367,6 +367,11 @@ input[type="week"]:hover::-webkit-calendar-picker-indicator {
   max-width: calc(100% - 50px);
   vertical-align: middle;
 }
+/* 도움말 보기 팝업(.modal-box) 본문 이미지 — 폭이 너무 크면 좌우 스크롤이 생겨 970px 로 제한 */
+.modal-box .whitespace-pre-wrap img {
+  max-width: 970px;
+  height: auto;
+}
 .cell-html .badge,
 .cell-html .tag {
   display: inline-block;
@@ -927,3 +932,6 @@ input[type="week"]:hover::-webkit-calendar-picker-indicator {
 [data-theme="dark"] .toast-error { background: #2e0a0a; color: #FF6B6B; border-color: #FF6B6B; }
 [data-theme="dark"] .toast-warn { background: #2e2400; color: #FBBF24; border-color: #FBBF24; }
 [data-theme="dark"] .toast-info { background: #0a1a2e; color: #6AADFF; border-color: #6AADFF; }
+
+/* 수정폼 input/textarea 밑줄 가시성 강화 — 기본 .border-accent/30 (액센트 30%) 너무 옅음 → 60%. focus 는 제외해 full-accent 유지 */
+.border-accent\/30:not(:focus){border-color:color-mix(in srgb,var(--color-primary) 60%,transparent)}

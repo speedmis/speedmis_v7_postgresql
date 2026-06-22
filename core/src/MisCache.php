@@ -84,6 +84,16 @@ class MisCache
         return $this->schemaVerMemo = (is_int($v) && $v > 0 ? $v : 1);
     }
 
+    /**
+     * 현재 스키마 버전 (공개). 목록(list) 응답 캐시 키에 섞어, 필드/메뉴 설정 변경
+     * (= invalidateSchemaCache 로 버전 bump) 시 모든 list 응답 캐시가 자동 무효화되게 한다.
+     * (list 응답은 필드정의 col_width/col_title 등을 통째로 품고 있어 schema 변경에 종속적)
+     */
+    public function schemaVer(): int
+    {
+        return $this->schemaVersion();
+    }
+
     public function getSchema(string $type, string $id): mixed
     {
         return $this->get($this->schemaKey($type, $id));

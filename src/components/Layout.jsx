@@ -181,6 +181,11 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
 
   // ── 탭 조작 ─────────────────────────────────────────────────────────────────
   function openTab(gubun, label, openIdx = null, openLinkVal = null, forceNew = false, iframeUrl = null, openFull = false, addUrl = null) {
+    // 새 탭을 열기 전, 떠나는 활성 탭의 현재 URL 을 저장(되돌아올 때 복원용)
+    if (activeTabId) {
+      window.__tabUrls = window.__tabUrls || {};
+      window.__tabUrls[activeTabId] = window.location.search;
+    }
     dispatch({ type: 'OPEN', gubun, label: label || String(gubun), openIdx, openLinkVal, forceNew, iframeUrl, openFull, addUrl });
     // addUrl이 있으면 URL에 추가 파라미터 반영
     if (addUrl) {
@@ -202,7 +207,12 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
     if (tabId === activeTabId) {
       const remaining = tabs.filter(t => t.id !== tabId);
       const next = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-      if (next) updateUrl(next.gubun); else updateUrl(0);
+      if (next) {
+        // 다음 활성 탭의 저장된 URL 복원(있으면), 없으면 기존 addUrl 기반
+        const saved = window.__tabUrls && window.__tabUrls[next.id];
+        if (saved) history.pushState(null, '', window.location.pathname + saved);
+        else updateUrl(next.gubun, next.openIdx ?? null, next.addUrl ?? null);
+      } else updateUrl(0);
     } else if (closing) {
       // 활성탭 유지
     }
@@ -226,10 +236,22 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
         setSplitRatio(0.5);
       }
     } else {
-      // 일반 클릭 → 분할 해제, 탭 활성화. 탭의 addUrl(_backup/tabid 등) 함께 복원.
+      // 일반 클릭 → 분할 해제, 탭 활성화. 각 탭의 '현재 URL'(필터/정렬/aggregate 포함)을 보존/복원.
       setSplitTabId(null);
+      const wasActive = (tab.id === activeTabId);
+      // 떠나는 활성 탭의 현재 URL 저장 (다른 탭으로 이동할 때만)
+      if (!wasActive && activeTabId) {
+        window.__tabUrls = window.__tabUrls || {};
+        window.__tabUrls[activeTabId] = window.location.search;
+      }
       dispatch({ type: 'ACTIVATE', tabId: tab.id });
-      updateUrl(tab.gubun, tab.openIdx ?? null, tab.addUrl ?? null);
+      if (!wasActive) {
+        // 다른 탭 클릭 → 그 탭의 저장된 URL 복원(있으면), 없으면 기존 addUrl 기반
+        const saved = window.__tabUrls && window.__tabUrls[tab.id];
+        if (saved) history.pushState(null, '', window.location.pathname + saved);
+        else updateUrl(tab.gubun, tab.openIdx ?? null, tab.addUrl ?? null);
+      }
+      // 활성 탭 자기 자신 재클릭이면 URL 을 손대지 않음 → 현재 URL(aggregate 등) 그대로 유지
       if (menuTree.length) {
         const pid = findTopRealPid(menuTree, tab.gubun);
         if (pid) { setActiveTopIdx(pid); setSidebarOpen(true); }
@@ -258,6 +280,7 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
   function selectGubun(gubun, label, forceNew = false, iframeUrl = null) {
     const name   = label || findMenuName(menuTree, gubun) || String(gubun);
     const addUrl = findMenuAddUrl(menuTree, gubun);
+    // 좌측 사이드바 진입은 부분합전용이라도 일반 탭으로 연다 (팝업은 mis:openTab 진입에서만).
     // menu.add_url 있으면 URL에 병합 반영 — orderby/recently/psize 등 기본값이 즉시 적용되도록
     openTab(gubun, name, null, null, forceNew, iframeUrl, false, addUrl || null);
     if (menuTree.length) {
@@ -459,7 +482,7 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
         {/* 좌측: 햄버거 + 로고 */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            className="w-9 h-9 flex items-center justify-center rounded bg-transparent border-0 text-nav-text hover:bg-nav-hover hover:text-white cursor-pointer transition-colors text-xl flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded bg-transparent border-0 text-nav-text hover:bg-nav-hover hover:text-nav-text-hover cursor-pointer transition-colors text-xl flex-shrink-0"
             onClick={() => {
               if (!activeTopIdx && menuTree.length > 0) {
                 setActiveTopIdx(menuTree[0].real_pid);
@@ -497,8 +520,8 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
                 className={[
                   'h-topbar px-4 bg-transparent border-0 border-b text-base cursor-pointer whitespace-nowrap transition-colors',
                   activeTopIdx === node.real_pid
-                    ? 'text-white border-nav-logo font-semibold'
-                    : 'text-nav-text border-transparent hover:text-white hover:bg-nav-hover',
+                    ? 'text-nav-active-text border-nav-logo font-semibold'
+                    : 'text-nav-text border-transparent hover:text-nav-text-hover hover:bg-nav-hover',
                 ].join(' ')}
                 onClick={() => handleTopMenu(node)}
               >
@@ -524,7 +547,7 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
             {user.station_name && (
               <span className="text-[11px] font-medium text-accent">{user.station_name}</span>
             )}
-            <span className="text-sm font-semibold text-white">{user.name}</span>
+            <span className="text-sm font-semibold text-nav-text-hover">{user.name}</span>
           </button>
           {user.is_admin === 'Y' && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-danger text-white font-semibold whitespace-nowrap">관리자</span>
@@ -1089,6 +1112,9 @@ function SettingsButton({ user, toggleMode, onLogout }) {
 }
 
 /* ── 제품정보 팝업 ── */
+// core(공유 번들/엔진)가 추가·변경될 때마다 버전을 미세 상향 + 갱신일 갱신 (사용자 지시 2026-06-22)
+const APP_VERSION = '7.0.1';
+const APP_VERSION_DATE = '2026-06-22';
 function AboutModal({ onClose }) {
   // 홈페이지는 모든 사이트가 https://v7.speedmis.com/ 로 통일 (정식 홈페이지)
   const homepage = 'https://v7.speedmis.com/';
@@ -1106,7 +1132,8 @@ function AboutModal({ onClose }) {
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <div className="text-base font-bold text-primary">SpeedMIS v7</div>
-          <InfoRow label="버전" value="7.0.0" />
+          <InfoRow label="버전" value={APP_VERSION} />
+          <InfoRow label="갱신일" value={APP_VERSION_DATE} />
           <InfoRow label="제작" value="Speedmis Inc." />
           <InfoRow label="기술" value="PHP 8.3 + Slim 4 + React 18 + Vite + MariaDB" />
           <InfoRow label="라이선스" value="무료" />

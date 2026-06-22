@@ -126,7 +126,7 @@ function MenuNode({ node, currentGubun, onSelect, depth, isOpen, onToggleTop }) 
           'border-b border-nav-border transition-colors',
           isActive
             ? 'bg-nav-active-bg text-nav-active-text font-semibold border-l border-l-nav-logo'
-            : 'text-nav-text hover:bg-nav-hover hover:text-white border-l border-l-transparent',
+            : 'text-nav-text hover:bg-nav-hover hover:text-nav-text-hover border-l border-l-transparent',
         ].join(' ')}
         style={{ paddingLeft: `${16 + depth * 14}px`, paddingRight: '12px' }}
         onClick={handleClick}

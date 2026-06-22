@@ -208,7 +208,10 @@ class DataHandler
         $cacheKey = $this->cache->makeKey(
             $menu['real_pid'] ?? "g{$gubun}",
             (string)($user->uid ?? ''),
-            $allFilter . $orderby . $page . $pageSize . $recently . $parentIdxRaw . ($aggregateActive ? '|agg' : '')
+            // 스키마버전(|sv) 포함 — 필드/메뉴 설정 변경(col_width 등) 시 schema 버전 bump 되어
+            // 이 프로그램을 직접 invalidate 하지 않아도(예: 267 웹소스디테일에서 타 프로그램 필드 편집)
+            // list 응답 캐시가 자동 무효화됨.
+            $allFilter . $orderby . $page . $pageSize . $recently . $parentIdxRaw . ($aggregateActive ? '|agg' : '') . '|sv' . $this->cache->schemaVer()
         );
 
         // 정렬: recently=Y → PK DESC 강제 / orderby → 사용자 지정 / 기본 정렬
@@ -621,7 +624,8 @@ class DataHandler
 
         // items 값 조회
         $stmt = $this->pdo->prepare(
-            'SELECT f.items FROM mis_menu_fields f
+            'SELECT f.items, f.grid_ctl_name, f.schema_type, f.db_field, m.table_name
+               FROM mis_menu_fields f
                JOIN mis_menus m ON m.real_pid = f.real_pid
               WHERE m.idx = ? AND f.alias_name = ? AND f.useflag = \'1\'
               LIMIT 1'
@@ -631,6 +635,24 @@ class DataHandler
         if (!$row) return ['success' => true, 'data' => []];
 
         $items = trim($row['items'] ?? '');
+
+        // additem(자유입력 콤보): 선택목록(items)이 비어 있으면 해당 컬럼의 기존 입력값을
+        //   DISTINCT 로 자동 조회해 제안 목록으로 사용. (items 가 있으면 dropdownitem 처럼 그 값 사용)
+        $ctl  = strtolower(trim($row['grid_ctl_name'] ?? ''));
+        $type = strtolower(trim($row['schema_type'] ?? ''));
+        if ($items === '' && ($ctl === 'additem' || $type === 'additem')) {
+            $table  = preg_replace('/[^a-zA-Z0-9_]/', '', $this->resolveTable(trim($row['table_name'] ?? '')));
+            $rawCol = trim((string)($row['db_field'] ?? ''));
+            if ($rawCol === '') $rawCol = $alias;                 // db_field 미설정 시 alias 가 곧 컬럼명
+            $dot    = strrpos($rawCol, '.');                       // 'table_m.col' → col
+            $col    = preg_replace('/[^a-zA-Z0-9_]/', '', $dot !== false ? substr($rawCol, $dot + 1) : $rawCol);
+            if ($table !== '' && $col !== '') {
+                // TRIM 미사용 — 구버전 MSSQL 호환 (backtick 은 compat PDO 가 [..]/".." 로 변환)
+                $items = "SELECT DISTINCT `{$col}` AS value, `{$col}` AS text FROM `{$table}` "
+                       . "WHERE `{$col}` IS NOT NULL AND `{$col}` <> '' ORDER BY `{$col}`";
+            }
+        }
+
         if ($items === '') return ['success' => true, 'data' => []];
 
         // SQL 쿼리인 경우 실행 — items 에 v6 PascalCase (RealCid 등) 가 남아있을 수 있어 v6→v7 컬럼명 변환 적용
@@ -675,6 +697,10 @@ class DataHandler
         }
 
         $menu      = $this->getMenu($gubun);
+        // 세션 컨텍스트 확립 — base_filter 의 @MisSession_UserID 등 플레이스홀더 치환에 필요.
+        // (setGlobals 미호출 시 $GLOBALS['misSessionUserId'] 가 비어 @MisSession_UserID→'' 로 풀려
+        //  사용자별 base_filter 가 모든 행을 탈락시켜 빈 결과가 됨)
+        $this->setGlobals($params, $user, $menu, 'list');
         $fields    = $this->getFields($gubun, $menu, $user);
         $mainTable = $this->resolveTable(trim($menu['table_name'] ?? ''));
         $userId    = (string)($user->uid ?? '');
@@ -696,10 +722,24 @@ class DataHandler
         $useCond    = $useCond !== '' ? $useCond : "table_m.useflag = '1'";
         $useCondSql = " AND ({$useCond})";
 
+        // 시간 관련 필터(월도/일자/일시 등)는 최근값이 위로 오도록 내림차순.
+        // (LIMIT 300 도 DESC 기준이라 최신값이 잘리지 않음)
+        // 신호: schema_type 이 date/time 계열 · db_field 에 date/time 포함 · col_title 이 월도/년월/일자/일시/날짜
+        $fieldDef = null;
+        foreach ($fields as $f) { if (trim((string)($f['alias_name'] ?? '')) === $field) { $fieldDef = $f; break; } }
+        $schemaType  = strtolower(trim((string)($fieldDef['schema_type'] ?? '')));
+        $dbFieldLc   = strtolower((string)($fieldDef['db_field'] ?? ''));
+        $colTitleV   = (string)($fieldDef['col_title'] ?? '');
+        $isTimeField = preg_match('/^(date|datetime|month|time|year)/', $schemaType)
+                    || strpos($dbFieldLc, 'date') !== false
+                    || strpos($dbFieldLc, 'time') !== false
+                    || preg_match('/월도|년월|연월|일자|일시|날짜/u', $colTitleV);
+        $orderDir = $isTimeField ? ' DESC' : '';
+
         $sql = "SELECT DISTINCT {$fieldExpr} AS v"
              . " FROM `{$mainTable}` table_m{$joinStr}"
              . " WHERE 1=1{$useCondSql}{$baseFilterSql}"
-             . " ORDER BY v LIMIT 300";
+             . " ORDER BY v{$orderDir} LIMIT 300";
 
         try {
             $stmt = $this->pdo->prepare($sql);
@@ -1135,7 +1175,15 @@ class DataHandler
         $GLOBALS['_client_formButtons'] = null;
         $GLOBALS['_client_saveAndNew'] = null;
         $GLOBALS['_client_belowForm'] = null;     // 폼 하단 패널: ['type'=>'siblingList', 'title'=>..., 'currentIdx'=>..., 'rows'=>[{idx,...}]]
+        $GLOBALS['_client_hideFields'] = null;    // view_load 에서 조건부로 숨길 폼필드 별칭 배열 (레코드값 기반, 예: depth)
         $this->callHook('view_load', $row);
+
+        // view_load 훅이 _client_hideFields(별칭 배열) 지정 시 해당 폼필드를 응답에서 제거.
+        // → DataForm 이 아예 렌더하지 않음(저장 대상에서도 빠짐). depth 등 레코드값 기반 조건부 숨김용.
+        if (!empty($GLOBALS['_client_hideFields']) && is_array($GLOBALS['_client_hideFields'])) {
+            $hideSet = array_flip(array_map('strval', $GLOBALS['_client_hideFields']));
+            $fields = array_values(array_filter($fields, fn($f) => !isset($hideSet[trim((string)($f['alias_name'] ?? ''))])));
+        }
 
         // row_buttons 훅 — view 폼 필드 라벨 옆에 버튼 주입 (list 셀과 공유)
         $fieldButtons = self::_renderRowButtons($row ?: []);
@@ -2808,6 +2856,16 @@ class DataHandler
      * - PK 컬럼 (pkAlias)
      * - 시스템 자동값: wdate/wdater, lastupdate/lastupdater (buildInsert/buildUpdate 에서 자동 처리)
      */
+    /**
+     * 저장값 우측 끝 공백류 정리 — 스페이스/탭/개행 + NBSP(\x{00A0}) + 전각공백(\x{3000}) 만 제거.
+     * 앞쪽·중간 공백은 사용자 의도일 수 있으므로 보존(RTRIM only). 문자열이 아니면 그대로 반환.
+     */
+    private function rtrimWs($v)
+    {
+        if (!is_string($v)) return $v;
+        return preg_replace('/[\s\x{00A0}\x{3000}]+$/u', '', $v);
+    }
+
     private function filterData(array $body, array $fields, string $mainTable = '', string $pkAlias = ''): array
     {
         if (empty($fields)) {
@@ -2825,6 +2883,8 @@ class DataHandler
         ));
 
         $out = [];
+        $claimedByInput = []; // col => true : 입력 컨트롤(객체명/입력글수 보유) 필드가 이미 차지한 컬럼
+        $encSkip = $this->collectEncryptCols($fields, $mainTable); // 암호화(textdecrypt2) 컬럼은 끝공백 보존(로그인 비교 안정)
         foreach ($fields as $f) {
             $alias   = trim($f['alias_name'] ?? '');
             $dbTable = $f['db_table'] ?? '';
@@ -2849,7 +2909,22 @@ class DataHandler
             // ⑥ v6→v7 컬럼명 변환
             $col = $mainTable !== '' ? $this->resolveColumn($mainTable, $dbField) : $dbField;
 
-            $out[$col] = $body[$alias];
+            // ⑦ 같은 컬럼에 여러 필드가 매핑된 경우 — 입력 컨트롤(객체명 grid_ctl_name 또는
+            //    입력글수 max_length)을 가진 "실제 입력필드" 가 우선한다. 둘 다 없는 표시전용 필드는
+            //    이미 입력필드가 차지한 컬럼을 덮어쓰지 않는다.
+            //    (예: it_priceQ1 가 객체/입력글수 없이 it_price 컬럼에 매핑되어, 사용자가 고친
+            //     it_price 입력값을 옛값으로 덮어쓰던 버그 — sort_order 가 뒤라 마지막에 이겨버림)
+            $isInput = (trim((string)($f['grid_ctl_name'] ?? '')) !== '')
+                    || (trim((string)($f['max_length'] ?? '')) !== '');
+            // 끝 공백 정리 (암호화 컬럼은 원본 보존)
+            $val = isset($encSkip[$col]) ? $body[$alias] : $this->rtrimWs($body[$alias]);
+            if ($isInput) {
+                $out[$col] = $val;
+                $claimedByInput[$col] = true;
+            } elseif (!isset($claimedByInput[$col])) {
+                // 표시전용 필드 — 같은 컬럼을 차지한 입력필드가 없을 때만 기록
+                $out[$col] = $val;
+            }
         }
         return $out;
     }
@@ -3256,6 +3331,12 @@ class DataHandler
             if (!empty($groupRows)) {
                 $row['__agg_rows'] = $groupRows;
             }
+            // 집계행(소계/총합) 커스터마이즈 훅 — 프로그램이 aggregate_json_load 정의 시 호출.
+            //   실데이터행은 list_json_load 가 담당하나 소계/총합행은 core 가 생성하므로 별도 훅 제공.
+            //   $row 에 __agg_type / __agg_rows(그룹 원본행) / orderby 컬럼값 포함 → __html 주입 가능.
+            if (function_exists('aggregate_json_load')) {
+                aggregate_json_load($row);
+            }
             return $row;
         };
 
@@ -3267,10 +3348,12 @@ class DataHandler
         $currentKey = null;
 
         foreach ($data as $row) {
-            // 그룹 키 계산
+            // 그룹 키 계산 — 끝공백(일반/nbsp/전각·탭) 정규화.
+            //   DB 콜레이션(PADSPACE)은 'X' 와 'X ' 를 같다고 보고 정렬 시 섞어 내보내지만, PHP 는 바이트 비교라
+            //   인접행 키가 'X'↔'X ' 로 튕기며 같은 그룹이 여러 소계로 쪼개진다. 저장경로 rtrimWs 와 동일 기준으로 흡수.
             $key = '';
             foreach ($orderAliases as $a) {
-                $key .= ($row[$a] ?? '') . "\x1F";
+                $key .= $this->rtrimWs((string)($row[$a] ?? '')) . "\x1F";
             }
 
             // 그룹 변경 시 이전 그룹 subtotal 주입
