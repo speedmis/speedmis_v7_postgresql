@@ -5,6 +5,7 @@ import { showToast } from './Toast';
 import DataGrid from './DataGrid';
 import DataForm from './DataForm';
 import ChildProgram from './ChildProgram';
+import CommentPanel from './CommentPanel';
 
 const GanttChartFull = lazy(() => import('./GanttChart'));
 const Dashboard      = lazy(() => import('./Dashboard'));
@@ -565,6 +566,28 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
   const [allTabs,       setAllTabs]       = useState([{ type: 'form', label: '기본폼' }]);
   const [formActiveTab, setFormActiveTab] = useState('기본폼');
 
+  // 탭바 가로 스크롤(탭 많을 때 좌우 화살표) — 잘린 탭으로 이동
+  const tabScrollRef = useRef(null);
+  const [tabArrows, setTabArrows] = useState({ left: false, right: false });
+  const updateTabArrows = useCallback(() => {
+    const el = tabScrollRef.current;
+    if (!el) { setTabArrows({ left: false, right: false }); return; }
+    setTabArrows({
+      left:  el.scrollLeft > 2,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  }, []);
+  const scrollTabs = useCallback((dir) => {
+    const el = tabScrollRef.current;
+    if (el) el.scrollBy({ left: dir * 160, behavior: 'smooth' });
+  }, []);
+  useEffect(() => {
+    const raf = requestAnimationFrame(updateTabArrows); // 탭 렌더 후 측정
+    const onResize = () => updateTabArrows();
+    window.addEventListener('resize', onResize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
+  }, [updateTabArrows, allTabs, formActiveTab]);
+
   // ── 좌우 분할 상태 ──────────────────────────────────────────────────────────
   const [formSplit,      setFormSplit]      = useState(() => localStorage.getItem(FORM_SPLIT_KEY) === '1');
   const [formSplitRatio, setFormSplitRatio] = useState(0.5);
@@ -931,6 +954,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
 
   // 분할 탭 클릭 처리
   function handleTabClick(t, tabKey) {
+    if (t.type === 'comments') { setFormActiveTab('__comments__'); return; }
     if (formSplit) {
       if (t.type === 'child') {
         // 우측 child 전환
@@ -988,7 +1012,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
             {(menu?.help_title ?? '').trim() !== '' && (
               <button
                 type="button"
-                className="h-btn-sm px-2 rounded border border-accent bg-accent-dim text-accent text-xs cursor-pointer hover:bg-accent hover:text-white transition-colors truncate"
+                className="h-btn-sm px-2 rounded border border-accent bg-surface-2 text-primary text-xs cursor-pointer hover:bg-accent hover:text-white transition-colors truncate"
                 title={menu.help_title}
                 onClick={() => setHelpViewOpen(true)}
               >📖 {menu.help_title.length > 10 ? menu.help_title.slice(0, 10) + '…' : menu.help_title}</button>
@@ -1103,7 +1127,7 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
               <button
                 key={i}
                 id={`mis-btn-custom-${i}`}
-                className="h-btn-sm px-3 rounded border border-accent bg-accent-dim text-accent text-sm font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
+                className="h-btn-sm px-3 rounded border border-accent bg-surface-2 text-primary text-sm font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
                 onClick={() => {
                   window.__mis_custom_action = btn.action ?? btn.label;
                   const checkedIdxs = gridRef.current?.getCheckedIdxs?.() ?? [];
@@ -1425,8 +1449,15 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
             >
               {/* 패널 헤더 */}
               <div className="flex items-stretch border-b border-solid border-border-base flex-shrink-0 bg-surface h-[38px]">
+                {/* 탭 좌우 스크롤 화살표 (탭 많아 잘릴 때만) */}
+                {!detailUrl && tabArrows.left && (
+                  <button type="button" onClick={() => scrollTabs(-1)} title="이전 탭"
+                    className="flex-shrink-0 w-6 flex items-center justify-center border-r border-border-base bg-surface hover:bg-surface-2 text-secondary transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+                  </button>
+                )}
                 {/* 좌측: 모드 레이블 + 탭 버튼 */}
-                <div className="flex items-stretch flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+                <div ref={tabScrollRef} onScroll={updateTabArrows} className="flex items-stretch flex-1 min-w-0 overflow-x-auto scrollbar-hide">
                   {/* 상세 도킹 모드 — 폼 탭 대신 라벨 한 개만 */}
                   {detailUrl && (
                     <span className="px-3 flex items-center text-sm font-semibold text-link border-r border-solid border-border-base whitespace-nowrap flex-shrink-0">
@@ -1489,6 +1520,15 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                             <span className="mr-1 text-[9px] font-bold text-accent opacity-60">R</span>
                           )}
                           {t.label}
+                          {/* 댓글 탭 건수 뱃지 */}
+                          {t.type === 'comments' && t.count != null && (
+                            <span className={[
+                              'ml-1.5 px-1.5 py-0 rounded-full text-[10px] font-bold leading-[16px] tabular-nums flex-shrink-0',
+                              isActive ? 'bg-accent text-white' : 'bg-surface-2 text-secondary border border-border-base',
+                            ].join(' ')}>
+                              {t.count >= 100 ? '99+' : t.count}
+                            </span>
+                          )}
                           {/* child 탭 건수 뱃지 */}
                           {t.type === 'child' && childCounts[t.gubun] != null && (
                             <span className={[
@@ -1504,6 +1544,34 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                       );
                     })}
                 </div>
+                {/* 탭 우측 스크롤 화살표 */}
+                {!detailUrl && tabArrows.right && (
+                  <button type="button" onClick={() => scrollTabs(1)} title="다음 탭"
+                    className="flex-shrink-0 w-6 flex items-center justify-center border-l border-border-base bg-surface hover:bg-surface-2 text-secondary transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                  </button>
+                )}
+                {/* 댓글 탭 — 우측 고정 (좌측 탭이 많아 잘려도 항상 보이게) */}
+                {!detailUrl && (() => {
+                  const ct = allTabs.find(t => t.type === 'comments');
+                  if (!ct) return null;
+                  const active = formActiveTab === '__comments__';
+                  return (
+                    <button type="button"
+                      className={['px-3 flex items-center gap-1 text-sm font-semibold border-l border-solid border-border-base transition-colors cursor-pointer whitespace-nowrap flex-shrink-0',
+                        active ? 'bg-surface-2 text-link' : 'bg-transparent text-tab-inactive hover:text-secondary'].join(' ')}
+                      onClick={() => setFormActiveTab('__comments__')} title="댓글">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      댓글
+                      {ct.count != null && (
+                        <span className={['px-1.5 py-0 rounded-full text-[10px] font-bold leading-[16px] tabular-nums',
+                          active ? 'bg-accent text-white' : 'bg-surface-2 text-secondary border border-border-base'].join(' ')}>
+                          {ct.count >= 100 ? '99+' : ct.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
                 {/* 우측: ⋯ 메뉴 + 분할버튼 + 크기 버튼 */}
                 <div className="flex items-center gap-1 px-2 flex-shrink-0">
                   <PanelMoreMenu
@@ -1728,6 +1796,12 @@ export default function MainContent({ gubun, user, openIdx = null, openLinkVal =
                       )
                     )}
                   </div>
+                </div>
+              ) : formActiveTab === '__comments__' ? (
+                /* ── 일반 모드: 댓글 패널 ── (realPid 는 view 응답의 _commentRealPid = $logic_pid. MisJoin 통합용) */
+                <div key={`comments-${gubun}-${currentIdx}`} className="flex-1 overflow-auto min-h-0">
+                  <CommentPanel realPid={allTabs.find(t => t.type === 'comments')?.realPid || menu?.real_pid || ''} midx={currentIdx} user={user}
+                    onCountChange={(n) => setAllTabs(prev => prev.map(t => t.type === 'comments' ? { ...t, count: n } : t))} />
                 </div>
               ) : formActiveTab.startsWith('child-') ? (
                 /* ── 일반 모드: child ── */

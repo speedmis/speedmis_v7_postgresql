@@ -99,6 +99,7 @@ class DataHandler
         $GLOBALS['_client_buttons'] = null;
         $GLOBALS['_client_fields'] = null;
         $GLOBALS['_client_redirect'] = null;
+        $GLOBALS['_useComments'] = false; // pageLoad 가 '댓글사용여부'(true/Y) 로 켤 수 있음 (워커 재사용 누수 방지 리셋)
         $this->setGlobals($params, $user, $menu, $listFlag);
         $this->loadProgram($menu['real_pid'] ?? '', $menu);
 
@@ -300,6 +301,7 @@ class DataHandler
                 }
                 // 캐시된 _access 는 과거 상태일 수 있으므로 현재 요청에서 새로 계산한 값으로 덮어쓰기
                 $cached['_access'] = $access;
+                $this->_attachCommentData($cached, $menu); // 댓글 사용 시 행별 갯수(__commentCount) 주입 (캐시 후 매요청 신선)
                 return $cached;
             }
         }
@@ -550,6 +552,7 @@ class DataHandler
             $result['_execSql'] = $GLOBALS['_execSql_log'];
         }
 
+        $this->_attachCommentData($result, $menu); // 댓글 사용 시 행별 갯수(__commentCount) 주입
         return $result;
     }
 
@@ -1011,6 +1014,7 @@ class DataHandler
         $GLOBALS['_menuAccess'] = $accessV;
         if ($accessV['admin']) $GLOBALS['misSessionIsAdmin'] = 'Y';
 
+        $GLOBALS['_useComments'] = false; // pageLoad 가 '댓글사용여부' 로 켤 수 있음 (워커 재사용 누수 방지 리셋)
         $this->setGlobals($params, $user, $menu, $actionFlag);
         $this->loadProgram($menu['real_pid'] ?? '', $menu);
 
@@ -1205,6 +1209,16 @@ class DataHandler
         if (!empty($GLOBALS['_client_formButtons'])) $viewResult['_client_formButtons'] = $GLOBALS['_client_formButtons'];
         if (!empty($GLOBALS['_client_saveAndNew'])) $viewResult['_client_saveAndNew'] = true;
         if (!empty($GLOBALS['_client_belowForm'])) $viewResult['_client_belowForm'] = $GLOBALS['_client_belowForm'];
+        if (!empty($GLOBALS['_useComments'])) {        // 댓글 사용 → DataForm 이 마지막 '댓글' 탭 표시
+            $cRealPid = $this->_resolveCommentRealPid($menu);
+            $viewResult['_useComments']    = true;
+            $viewResult['_commentRealPid'] = $cRealPid;
+            $vidx = ($params['idx'] ?? '') !== '' ? $params['idx'] : ($row['idx'] ?? '');
+            if ($vidx !== '' && $vidx !== null) {
+                $cmap = (new \App\CommentHandler($this->pdo))->countsByMidx($cRealPid, [$vidx]);
+                $viewResult['_commentCount'] = (int)($cmap[(string)$vidx] ?? 0);
+            }
+        }
         if (($params['dev_mode'] ?? '') === '1') {
             $menuName = $menu['menu_name'] ?? '';
             $fromSql  = "`{$table}` table_m{$joinStr}";
@@ -2646,12 +2660,14 @@ class DataHandler
             // v6 호환
             '@MisSession_UserID', '@MisSession_IsAdmin', '@MisSession_PositionCode',
             '@MisSession_StationNum', '@MisSession_StationName', '@RealPid', '@parent_RealPid',
+            '@real_pid', '@parent_real_pid',
         ], [
             $uid, $isAdmin, $posCode, $stationN, $stationName, $realPid, $parentRp,
             $today, $now, $now, $time,
             $uid, $isAdmin, $posCode, $stationN, $stationName, $realPid, $parentRp,
             $today, $now, $now, $time,
             $uid, $isAdmin, $posCode, $stationN, $stationName, $realPid, $parentRp,
+            $realPid, $parentRp,
         ], $s);
     }
 
@@ -2659,6 +2675,45 @@ class DataHandler
      * 프로그램 훅 파일 로드
      * menu_type='06'이면 mis_join_pid real_pid 우선, 없으면 자신의 real_pid
      */
+    /**
+     * 댓글 real_pid 결정. _useComments 가 true/'Y'/'1' 등 불리언류면 현재 메뉴 real_pid(기본),
+     * real_pid 문자열(예: 'carparts006083')이면 그 값으로 오버라이드(MisJoin → 원프로그램 real_pid).
+     */
+    private function _resolveCommentRealPid(array $menu): string
+    {
+        $uc  = $GLOBALS['_useComments'] ?? false;
+        $ucs = is_string($uc) ? trim($uc) : '';
+        if ($uc === true || $uc === 1 || in_array(strtolower($ucs), ['', '1', 'y', 'true', 'on'], true)) {
+            return (string)($menu['real_pid'] ?? '');         // 기본 = 현재 real_pid
+        }
+        return $ucs;                                          // 오버라이드 = 지정 real_pid
+    }
+
+    /** 댓글 사용 프로그램(_useComments) — 응답에 플래그 + 목록 행별 댓글갯수(__commentCount) 주입. */
+    private function _attachCommentData(array &$result, array $menu): void
+    {
+        if (empty($GLOBALS['_useComments'])) return;
+        $cRealPid = $this->_resolveCommentRealPid($menu);
+        $result['_useComments']    = true;
+        $result['_commentRealPid'] = $cRealPid;
+        if (empty($result['data']) || !is_array($result['data'])) return;
+        // midx = 레코드 PK = 첫 필드 alias (예: 314=idx, 6083=it_id). 폼이 쓰는 idx 와 일치시킴.
+        $pkAlias = $result['fields'][0]['alias_name'] ?? 'idx';
+        $idxs = [];
+        foreach ($result['data'] as $r) {
+            $v = $r[$pkAlias] ?? $r['idx'] ?? null;
+            if ($v !== '' && $v !== null) $idxs[] = $v;
+        }
+        if (!$idxs) return;
+        $cmap = (new \App\CommentHandler($this->pdo))->countsByMidx($cRealPid, $idxs);
+        if (!$cmap) return;
+        foreach ($result['data'] as &$r) {
+            $mid = (string)($r[$pkAlias] ?? $r['idx'] ?? '');
+            if ($mid !== '' && isset($cmap[$mid])) $r['__commentCount'] = $cmap[$mid];
+        }
+        unset($r);
+    }
+
     private function loadProgram(string $real_pid, array $menu = []): void
     {
         $target = trim($menu['_fields_real_pid'] ?? '') ?: $real_pid;
@@ -2732,6 +2787,10 @@ class DataHandler
         $GLOBALS['gubun']                   = (int)($params['gubun'] ?? 0);
         $GLOBALS['idx']                     = (int)($params['idx']   ?? 0);
         $GLOBALS['real_pid']                = $menu['real_pid']  ?? '';
+        // MisJoin(menu_type='06') 의 원프로그램 real_pid. join 메뉴면 mis_join_pid, 아니면 자기 real_pid.
+        //   v6 의 $logic_pid 와 동일 — 댓글 등을 원프로그램으로 모을 때 사용($GLOBALS['_useComments']=$logic_pid).
+        $GLOBALS['mis_join_pid']            = trim((string)($menu['mis_join_pid'] ?? ''));
+        $GLOBALS['logic_pid']               = trim((string)($menu['_fields_real_pid'] ?? '')) ?: ($menu['real_pid'] ?? '');
         $GLOBALS['menu_name']               = $menu['menu_name'] ?? '';
         $GLOBALS['full_site']               = rtrim($_ENV['APP_URL'] ?? '', '/');
         $GLOBALS['parent_idx']              = (int)($params['parent_idx'] ?? 0);

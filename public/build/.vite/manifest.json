@@ -1,6 +1,6 @@
 {
-  "_index-D2keLkbX.js": {
-    "file": "assets/index-D2keLkbX.js",
+  "_index-cgIWNQfS.js": {
+    "file": "assets/index-cgIWNQfS.js",
     "name": "index",
     "isDynamicEntry": true,
     "imports": [
@@ -8,7 +8,7 @@
     ]
   },
   "node_modules/@monaco-editor/react/dist/index.mjs": {
-    "file": "assets/index-BU0xmCxX.js",
+    "file": "assets/index-DK1aDXMc.js",
     "name": "index",
     "src": "node_modules/@monaco-editor/react/dist/index.mjs",
     "isDynamicEntry": true,
@@ -21,7 +21,7 @@
     "src": "node_modules/react-quill/dist/quill.snow.css"
   },
   "src/components/ChartModal.jsx": {
-    "file": "assets/ChartModal-D07m-bkC.js",
+    "file": "assets/ChartModal-td7wQCv4.js",
     "name": "ChartModal",
     "src": "src/components/ChartModal.jsx",
     "isDynamicEntry": true,
@@ -30,7 +30,7 @@
     ]
   },
   "src/components/Dashboard.jsx": {
-    "file": "assets/Dashboard-DUXSTsB4.js",
+    "file": "assets/Dashboard-Bl05krb6.js",
     "name": "Dashboard",
     "src": "src/components/Dashboard.jsx",
     "isDynamicEntry": true,
@@ -42,7 +42,7 @@
     ]
   },
   "src/components/GanttChart.jsx": {
-    "file": "assets/GanttChart-Bd4kt_DA.js",
+    "file": "assets/GanttChart-DuaASzlV.js",
     "name": "GanttChart",
     "src": "src/components/GanttChart.jsx",
     "isDynamicEntry": true,
@@ -51,7 +51,7 @@
     ]
   },
   "src/components/mobile/MobileLayout.jsx": {
-    "file": "assets/MobileLayout-CiurC4h6.js",
+    "file": "assets/MobileLayout-Bgc7Kfi1.js",
     "name": "MobileLayout",
     "src": "src/components/mobile/MobileLayout.jsx",
     "isDynamicEntry": true,
@@ -63,21 +63,22 @@
     ]
   },
   "src/main.jsx": {
-    "file": "assets/main-DJmkTz6K.js",
+    "file": "assets/main-CrG7th28.js",
     "name": "main",
     "src": "src/main.jsx",
     "isEntry": true,
     "dynamicImports": [
       "node_modules/@monaco-editor/react/dist/index.mjs",
       "src/components/GanttChart.jsx",
-      "_index-D2keLkbX.js",
+      "_index-cgIWNQfS.js",
+      "_index-cgIWNQfS.js",
       "src/components/GanttChart.jsx",
       "src/components/Dashboard.jsx",
       "src/components/ChartModal.jsx",
       "src/components/mobile/MobileLayout.jsx"
     ],
     "css": [
-      "assets/main-D9a_Gyxl.css"
+      "assets/main-BG3XQN8Q.css"
     ]
   }
 }

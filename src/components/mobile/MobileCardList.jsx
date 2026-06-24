@@ -12,6 +12,36 @@ function parseItems(items) {
   return (items ?? '').split(',').filter(Boolean).map(v => ({ value: v.trim(), text: v.trim() }));
 }
 
+/* 체크박스(c) 툴바 필터 — DataGrid.jsx 와 동일 규약 (items "연산자:값" + 날짜매크로 @today-7d 등) */
+function resolveFilterMacro(v) {
+  const s = String(v ?? '').trim();
+  const m = s.match(/^@today(?:([+-]\d+)\s*([dwm])?)?$/i);
+  if (!m) return s;
+  const n = m[1] ? parseInt(m[1], 10) : 0;
+  const unit = (m[2] || 'd').toLowerCase();
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (unit === 'w') d.setDate(d.getDate() + n * 7);
+  else if (unit === 'm') d.setMonth(d.getMonth() + n);
+  else d.setDate(d.getDate() + n);
+  const p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function parseCheckboxSpec(items) {
+  const s = String(items ?? '').trim();
+  const ci = s.indexOf(':');
+  if (ci < 0) return null;
+  const operator = s.slice(0, ci).trim();
+  if (!operator) return null;
+  return { operator, value: resolveFilterMacro(s.slice(ci + 1)) };
+}
+function isCheckboxOn(v) {
+  return v !== undefined && v !== null && v !== false && v !== '' && v !== '0' && v !== 'N';
+}
+function isCheckboxDefaultOn(dv) {
+  const s = String(dv ?? '').trim().toLowerCase();
+  return s === '1' || s === 'y' || s === 'true' || s === 'on' || s === 'checked';
+}
+
 // 뱃지 색상 매핑
 const BADGE_COLORS = [
   { bg: '#E6F9F0', color: '#03B26C' },
@@ -71,7 +101,8 @@ export default function MobileCardList({ gubun, user, menu, onCardClick, onWrite
   const pageSize = 20;
 
   const [searchText, setSearchText] = useState('');
-  const filterFields = fields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? ''));
+  const filterFields = fields.filter(f => ['s','t','w','c'].includes(f.grid_is_handle ?? ''));
+  const checkboxFilters = filterFields.filter(f => f.grid_is_handle === 'c');
   const selectFilters = filterFields.filter(f => f.grid_is_handle === 's');
   const hasTextFilter = filterFields.some(f => f.grid_is_handle === 't');
   const { title: titleField, badge: badgeField, main: mainFields, meta: metaFields } = classifyFields(fields);
@@ -114,6 +145,11 @@ export default function MobileCardList({ gubun, user, menu, onCardClick, onWrite
         const to   = value && typeof value === 'object' ? String(value.to   ?? '') : '';
         if (from === '' && to === '') continue;
         out.push({ field, operator: 'between', value: [from, to] });
+      } else if (handle === 'c') {
+        // 체크박스 — 켜졌을 때만 items("연산자:값") 조건 적용
+        if (!isCheckboxOn(value)) continue;
+        const spec = parseCheckboxSpec(f?.items);
+        if (spec) out.push({ field, operator: spec.operator, value: spec.value });
       } else {
         if (value === '' || value == null) continue;
         out.push({ field, operator: handle === 's' ? 'eq' : 'contains', value });
@@ -179,9 +215,11 @@ export default function MobileCardList({ gubun, user, menu, onCardClick, onWrite
             const v = c?.value ?? '';
             const f = fields.find(x => x.alias_name === field);
             const handle = f?.grid_is_handle ?? '';
-            const isUi = ['s', 't', 'w'].includes(handle);
+            const isUi = ['s', 't', 'w', 'c'].includes(handle);
             if (isUi) {
-              if (handle === 'w') {
+              if (handle === 'c') {
+                uiVals[field] = true;                  // URL 에 있으면 체크 상태로 복원
+              } else if (handle === 'w') {
                 // between 필터 — 배열 ["from","to"] 또는 객체 {from,to} 둘 다 지원 → state 형식 (객체) 으로 통일
                 if (Array.isArray(v)) {
                   uiVals[field] = { from: String(v[0] ?? ''), to: String(v[1] ?? '') };
@@ -210,6 +248,22 @@ export default function MobileCardList({ gubun, user, menu, onCardClick, onWrite
           }
         }
       } catch {}
+    }
+    // 체크박스(c) 기본 체크(default_value) — URL allFilter 가 없을 때만 적용
+    if (!af || af.trim() === '' || af.trim() === '[]') {
+      const cbSeed = {};
+      const cbArr = [];
+      fields.forEach(f => {
+        if ((f.grid_is_handle ?? '') !== 'c' || !isCheckboxDefaultOn(f.default_value)) return;
+        cbSeed[f.alias_name] = true;
+        const spec = parseCheckboxSpec(f.items);
+        if (spec) cbArr.push({ field: f.alias_name, operator: spec.operator, value: spec.value });
+      });
+      if (cbArr.length) {
+        setFilterValues(prev => ({ ...prev, ...cbSeed }));
+        forceAfRef.current = JSON.stringify(cbArr);
+        triggered = true;
+      }
     }
     const rec = p.get('recently');
     if (rec === 'Y' || rec === 'N') {
@@ -281,6 +335,27 @@ export default function MobileCardList({ gubun, user, menu, onCardClick, onWrite
               </svg>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 체크박스 필터 (grid_is_handle='c') */}
+      {checkboxFilters.length > 0 && (
+        <div className="m-filter-chips">
+          {checkboxFilters.map(f => {
+            const alias = f.alias_name ?? '';
+            const label = (() => { const s = f.col_title ?? alias; const ci = s.indexOf(','); return ci === -1 ? s : s.slice(ci + 1) || s.slice(0, ci) || alias; })();
+            const on = isCheckboxOn(filterValues[alias]);
+            return (
+              <label key={alias} className="m-filter-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={e => { setFilterValues(prev => ({ ...prev, [alias]: e.target.checked })); stripDeepLinkUrl(); requestAnimationFrame(() => { setRows([]); setPage(1); loadRef.current?.(1); }); }}
+                />
+                <span>{label}</span>
+              </label>
+            );
+          })}
         </div>
       )}
 

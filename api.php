@@ -436,6 +436,41 @@ $app->any('/api.php', function (Request $req, Response $res) use ($app): Respons
             $handler = $container->get(DataHandler::class);
             return jsonOut($res, $handler->treat($params, $body, $user));
 
+        // ── 댓글 (mis_comments / mis_comments_like) ──────────────────────────
+        case 'commentList': {
+            $ch = new \App\CommentHandler($container->get(\PDO::class));
+            $realPid = (string)($params['real_pid'] ?? $params['realPid'] ?? '');
+            $midx    = (string)($params['midx'] ?? $params['idx'] ?? '');
+            return jsonOut($res, $ch->listComments($realPid, $midx, (string)($user->uid ?? '')));
+        }
+        case 'commentWrite': {
+            $ch = new \App\CommentHandler($container->get(\PDO::class));
+            $realPid  = (string)($body['real_pid'] ?? $params['real_pid'] ?? '');
+            $midx     = (string)($body['midx'] ?? $params['midx'] ?? '');
+            $contents = (string)($body['contents'] ?? '');
+            $refidx   = (int)($body['refidx'] ?? 0);
+            return jsonOut($res, $ch->write($realPid, $midx, $contents, $refidx, (string)($user->uid ?? '')));
+        }
+        case 'commentDelete': {
+            $ch = new \App\CommentHandler($container->get(\PDO::class));
+            $idx     = (int)($body['idx'] ?? $params['idx'] ?? 0);
+            $isAdmin = ($user->is_admin ?? '') === 'Y';
+            return jsonOut($res, $ch->delete($idx, (string)($user->uid ?? ''), $isAdmin));
+        }
+        case 'commentUpdate': {
+            $ch = new \App\CommentHandler($container->get(\PDO::class));
+            $idx      = (int)($body['idx'] ?? $params['idx'] ?? 0);
+            $contents = (string)($body['contents'] ?? '');
+            $isAdmin  = ($user->is_admin ?? '') === 'Y';
+            return jsonOut($res, $ch->update($idx, $contents, (string)($user->uid ?? ''), $isAdmin));
+        }
+        case 'commentLike': {
+            $ch = new \App\CommentHandler($container->get(\PDO::class));
+            $cidx = (int)($body['commentsIdx'] ?? $body['comments_idx'] ?? 0);
+            $lh   = (string)($body['LH'] ?? $body['lh'] ?? '');
+            return jsonOut($res, $ch->toggleLike($cidx, $lh, (string)($user->uid ?? '')));
+        }
+
         // 314번 '추가' 버튼 — 새 메뉴/프로그램 생성
         case 'menuCreate': {
             $pdo = $container->get(\PDO::class);

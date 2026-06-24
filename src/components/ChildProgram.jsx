@@ -174,7 +174,7 @@ export default function ChildProgram({ childGubun, parentIdx, parentGubun, user,
             <button
               key={i}
               id={`mis-btn-custom-${i}`}
-              className="h-btn-sm px-3 rounded border border-accent bg-accent-dim text-accent text-xs font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
+              className="h-btn-sm px-3 rounded border border-accent bg-surface-2 text-primary text-xs font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
               onClick={() => {
                 window.__mis_custom_action = btn.action ?? btn.label;
                 gridRef.current?.reload?.();

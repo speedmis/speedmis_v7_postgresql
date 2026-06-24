@@ -933,5 +933,51 @@ input[type="week"]:hover::-webkit-calendar-picker-indicator {
 [data-theme="dark"] .toast-warn { background: #2e2400; color: #FBBF24; border-color: #FBBF24; }
 [data-theme="dark"] .toast-info { background: #0a1a2e; color: #6AADFF; border-color: #6AADFF; }
 
+/* ──────────────────────────────────────────────────────────
+   좌측 틀고정 (왼쪽 체크/No 컬럼 고정)
+   - 아이패드 미니 가로모드(1024px) 이상에서만 작동
+   - 그 미만(모바일·세로)에서는 일반 스크롤
+   ────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  /* 본문 셀 */
+  table.table-fixed td.mis-check-col,
+  table.table-fixed td.mis-no-col {
+    position: sticky;
+    left: var(--mis-fz-left, 0px);
+    z-index: 6;
+    background-color: var(--color-surface);
+  }
+  /* 헤더 셀 — 가로/세로 동시 고정, 다른 헤더 위로 */
+  table.table-fixed thead th.mis-check-col,
+  table.table-fixed thead th.mis-no-col {
+    position: sticky;
+    left: var(--mis-fz-left, 0px);
+    z-index: 14;
+  }
+  /* 컬럼 인라인 필터 행 */
+  table.table-fixed tr td.mis-check-col,
+  table.table-fixed tr td.mis-no-col {
+    z-index: 7;
+  }
+
+  /* 행 상태별 배경 (스크롤된 셀이 비치지 않도록 불투명 유지) */
+  table.table-fixed tr:hover > td.mis-check-col,
+  table.table-fixed tr:hover > td.mis-no-col,
+  table.table-fixed tr[class*="bg-surface-2"] > td.mis-check-col,
+  table.table-fixed tr[class*="bg-surface-2"] > td.mis-no-col {
+    background-color: var(--color-surface-2);
+  }
+  table.table-fixed tr[class*="bg-accent-dim"] > td.mis-check-col,
+  table.table-fixed tr[class*="bg-accent-dim"] > td.mis-no-col {
+    background-color: var(--color-primary-dim);
+  }
+
+  /* 고정영역 ↔ 스크롤영역 경계선 + 옅은 그림자 (No 컬럼 우측) */
+  table.table-fixed td.mis-no-col,
+  table.table-fixed thead th.mis-no-col {
+    box-shadow: inset -1px 0 0 var(--color-border), 2px 0 4px -2px rgba(0, 0, 0, 0.12);
+  }
+}
+
 /* 수정폼 input/textarea 밑줄 가시성 강화 — 기본 .border-accent/30 (액센트 30%) 너무 옅음 → 60%. focus 는 제외해 full-accent 유지 */
 .border-accent\/30:not(:focus){border-color:color-mix(in srgb,var(--color-primary) 60%,transparent)}

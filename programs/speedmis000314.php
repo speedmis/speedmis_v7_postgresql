@@ -2,11 +2,16 @@
 
 
   function pageLoad() {
-     
+
 
       $GLOBALS['_client_buttons'] = [
           ['label' => '권한적용', 'action' => '권한적용']
       ];
+
+      // 댓글사용여부 — true/Y 로 켜면: 목록 IDX 셀에 댓글갯수 뱃지 + 폼 마지막에 '댓글' 탭 노출.
+      //   값에 real_pid 문자열을 주면 그 real_pid 로 저장. MisJoin 댓글을 원프로그램으로 모으려면
+      //   $GLOBALS['_useComments'] = $logic_pid; (v6 의 logic_pid = join 이면 mis_join_pid, 아니면 real_pid).
+      $GLOBALS['_useComments'] = true;
   }
 
 
@@ -97,7 +102,11 @@ function save_deleteBefore($idx, &$cancelDelete) {
       global $__pdo;
       $siteId = $_ENV['SITE_ID'] ?? 'speedmis';
       $realPid = $siteId . str_pad($newIdx, 6, '0', STR_PAD_LEFT);
-      $__pdo->prepare("UPDATE mis_menus SET real_pid = ?, useflag = '1' WHERE idx = ? AND (real_pid IS NULL OR real_pid = '')")
+      // 신규 메뉴 real_pid 는 항상 SITE_ID + 6자리 idx 로 강제(자기 idx 존중).
+      // '참조입력'(참조하여 신규입력)은 원본 real_pid 를 그대로 복사해오므로,
+      // 빈값일 때만 채우면 복사된 real_pid(예: carparts006165)가 남아 새 idx 와 불일치한다.
+      // → 방금 INSERT 된 행($newIdx) 한정으로 무조건 자기 idx 기준 real_pid 로 덮어씀.
+      $__pdo->prepare("UPDATE mis_menus SET real_pid = ?, useflag = '1' WHERE idx = ?")
             ->execute([$realPid, $newIdx]);
   }
 

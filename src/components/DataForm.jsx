@@ -217,6 +217,7 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
   const [saveAndNew, setSaveAndNew] = useState(false);
   // 서버 훅 _client_belowForm — 폼 하단 패널 (sibling 이력 등)
   const [belowForm, setBelowForm] = useState(null);
+  const commentInfoRef = useRef(null); // 댓글 사용 시 {realPid, midx} — applyFields 가 마지막 '댓글' 탭 추가
   const submitModeRef = useRef('normal');
   // 서버 훅 row_buttons 로 주입되는 필드별 버튼 HTML 맵 {alias_name: '<button>...</button>...'}
   const [fieldButtons, setFieldButtons] = useState({});
@@ -348,9 +349,15 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
           }
         }
       }
+      // 댓글 사용 프로그램(_useComments) → 마지막 '댓글' 탭 (저장된 레코드 = view/modify 에서만)
+      if (commentInfoRef.current) {
+        unifiedTabs.push({ type: 'comments', label: '댓글', count: commentInfoRef.current.count ?? 0, realPid: commentInfoRef.current.realPid });
+      }
       onTabsChange?.(unifiedTabs);
       // tabid → form_group 변환은 별도 useEffect 에서 처리 (activeTabProp/fields 변화 감지용)
     };
+
+    commentInfoRef.current = null; // 매 로드 리셋 (write 모드/비댓글 프로그램은 탭 없음)
 
     if (mode === 'write') {
       api.list(gubun, { pageSize: 1, actionFlag: 'write' })
@@ -402,6 +409,10 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
         if (f.grid_ctl_name === 'textdecrypt2') initValues[f.alias_name] = '';
       });
       setValues(initValues);
+      // 댓글 사용 플래그 — applyFields 전에 세팅해야 '댓글' 탭이 추가됨
+      commentInfoRef.current = viewData._useComments
+        ? { realPid: viewData._commentRealPid || '', midx: idx, count: viewData._commentCount ?? 0 }
+        : null;
       applyFields(fields);
       setPrintHtml(viewData.printHtml ?? null);
       setAccess(viewData._access ?? null);
@@ -773,6 +784,7 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
             }
           }}
         >{isPopup ? '닫기' : '취소'}</button>
+        {renderFormButtons()}
       </div>
     );
   };
@@ -846,8 +858,71 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
             {deleting ? '삭제 중...' : '삭제'}
           </button>
         )}
+        {renderFormButtons()}
       </div>
     );
+  };
+
+  // _client_formButtons — 저장/수정 등 액션행 '안'에 함께 렌더(별도 줄 만들지 않음). 행 버튼과 동일 크기.
+  const fbCls = "h-btn px-5 rounded border border-accent bg-surface-2 text-primary text-base font-medium cursor-pointer hover:bg-accent hover:text-white transition-colors";
+  const renderFormButtons = () => {
+    if (!formButtons || formButtons.length === 0) return null;
+    return formButtons.map((b, i) => {
+      // 게시판 답변 — 부모 글 b_ref/b_step/b_level 프리필하여 write 진입(save_writeBefore 가 스레드 계산).
+      if (b.action === 'boardReply') {
+        return (
+          <button key={i} type="button" className={fbCls}
+            onClick={() => {
+              const pStep  = parseInt(values.b_step ?? '0', 10) || 0;
+              const pLevel = parseInt(values.b_level ?? '0', 10) || 0;
+              const pTitle = String(values.title ?? '').replace(/^(RE:\s*)+/i, '');
+              const prefill = { b_ref: values.b_ref, b_step: pStep, b_level: pLevel + 1, title: 'RE: ' + pTitle, __referMsg: '답변을 작성하세요. (원글: ' + pTitle + ')' };
+              try { sessionStorage.setItem(`mis_referInsert_${gubun}`, JSON.stringify(prefill)); } catch {}
+              window.dispatchEvent(new CustomEvent('mis:openIdxModify', { detail: { mode: 'write' } }));
+            }}
+          >{b.label ?? '답변'}</button>
+        );
+      }
+      // referInsert / forwardPlan: 현재 폼 값 prefill 보존 + 같은 탭에서 write 모드 전환
+      if (b.action === 'referInsert' || b.action === 'forwardPlan') {
+        return (
+          <button key={i} type="button" className={fbCls}
+            onClick={() => {
+              const skip = new Set(['idx','wdate','wdater','lastupdate','lastupdater','useflag','__readonly']);
+              const prefill = {};
+              Object.entries(values || {}).forEach(([k, v]) => { if (skip.has(k)) return; if (v === null || v === undefined) return; prefill[k] = v; });
+              if (b.action === 'forwardPlan') { prefill.naeyong = values.hyanghugyehoek ?? ''; prefill.hyanghugyehoek = ''; }
+              try { sessionStorage.setItem(`mis_referInsert_${gubun}`, JSON.stringify(prefill)); } catch {}
+              window.dispatchEvent(new CustomEvent('mis:openIdxModify', { detail: { mode: 'write' } }));
+            }}
+          >{b.label ?? (b.action === 'forwardPlan' ? '향후계획처리' : '참조하여 신규입력')}</button>
+        );
+      }
+      if (b.action) {
+        return (
+          <button key={i} type="button" className={fbCls}
+            onClick={async () => {
+              if (b.confirm && !window.confirm(b.confirm)) return;
+              try {
+                const res = await api.treat(gubun, { action: b.action, idx: b.idx ?? idx });
+                const d = res.data ?? {};
+                if (d._client_alert) alert(d._client_alert);
+                if (d._client_toast) showToast(d._client_toast);
+                if (d.success === false) return;
+                if (d.reloadList) onDelete?.();
+              } catch (e) { showToast(e.message || '실행 실패', 'error'); }
+            }}
+          >{b.label ?? '실행'}</button>
+        );
+      }
+      const detail = {};
+      if (b.gubun)    detail.gubun    = b.gubun;
+      if (b.realPid)  detail.realPid  = b.realPid;
+      if (b.idx)      detail.idx      = b.idx;
+      if (b.label)    detail.label    = b.label;
+      if (b.openFull) detail.openFull = true;
+      return (<button key={i} type="button" className={fbCls} data-opentab={JSON.stringify(detail)}>{b.label ?? '열기'}</button>);
+    });
   };
 
   const showEditActions = !readOnly && !hideActions && !menuReadOnly;
@@ -866,83 +941,10 @@ export default function DataForm({ gubun, idx, mode, user, onSaved, onCancel, on
       {showEditActions && renderEditActions("flex gap-2 mb-3 flex-shrink-0")}
       {showViewActions && renderViewActions("flex gap-2 mb-3 flex-shrink-0")}
 
-      {/* 서버 주입 폼 버튼 (_client_formButtons)
-          - b.action 있으면: treat API 호출 후 리스트로 복귀 (onDelete: 패널 닫기 + 목록 새로고침)
-          - b.action 없으면: data-opentab → App.jsx 전역 위임이 탭 오픈 */}
-      {formButtons && formButtons.length > 0 && (
-        <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-          {formButtons.map((b, i) => {
-            // referInsert / forwardPlan: 현재 폼 값을 prefill 로 보존 + 같은 탭에서 write 모드 전환
-            //   forwardPlan 만 추가 변환: '향후계획(hyanghugyehoek)' → '내용(naeyong)' 이동 + 향후계획 공란
-            if (b.action === 'referInsert' || b.action === 'forwardPlan') {
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className="h-btn-sm px-3 rounded border border-accent bg-accent-dim text-accent text-sm font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
-                  onClick={() => {
-                    // 자동/시스템 필드 제외
-                    const skip = new Set(['idx','wdate','wdater','lastupdate','lastupdater','useflag','__readonly']);
-                    const prefill = {};
-                    Object.entries(values || {}).forEach(([k, v]) => {
-                      if (skip.has(k)) return;
-                      if (v === null || v === undefined) return;
-                      prefill[k] = v;
-                    });
-                    if (b.action === 'forwardPlan') {
-                      prefill.naeyong = values.hyanghugyehoek ?? '';
-                      prefill.hyanghugyehoek = '';
-                    }
-                    try { sessionStorage.setItem(`mis_referInsert_${gubun}`, JSON.stringify(prefill)); } catch {}
-                    // 새 탭 X — 같은 탭에서 write 모드 전환 (panelSize 그대로 유지)
-                    window.dispatchEvent(new CustomEvent('mis:openIdxModify', {
-                      detail: { mode: 'write' }
-                    }));
-                  }}
-                >{b.label ?? (b.action === 'forwardPlan' ? '향후계획처리' : '참조하여 신규입력')}</button>
-              );
-            }
-            if (b.action) {
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className="h-btn-sm px-3 rounded border border-accent bg-accent-dim text-accent text-sm font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
-                  onClick={async () => {
-                    if (b.confirm && !window.confirm(b.confirm)) return;
-                    try {
-                      const res = await api.treat(gubun, {
-                        action: b.action,
-                        idx: b.idx ?? idx,
-                      });
-                      const d = res.data ?? {};
-                      if (d._client_alert) alert(d._client_alert);
-                      if (d._client_toast) showToast(d._client_toast);
-                      if (d.success === false) return;
-                      if (d.reloadList) onDelete?.();
-                    } catch (e) {
-                      showToast(e.message || '실행 실패', 'error');
-                    }
-                  }}
-                >{b.label ?? '실행'}</button>
-              );
-            }
-            const detail = {};
-            if (b.gubun)    detail.gubun    = b.gubun;
-            if (b.realPid)  detail.realPid  = b.realPid;
-            if (b.idx)      detail.idx      = b.idx;
-            if (b.label)    detail.label    = b.label;
-            if (b.openFull) detail.openFull = true;
-            return (
-              <button
-                key={i}
-                type="button"
-                className="h-btn-sm px-3 rounded border border-accent bg-accent-dim text-accent text-sm font-semibold cursor-pointer hover:bg-accent hover:text-white transition-colors"
-                data-opentab={JSON.stringify(detail)}
-              >{b.label ?? '열기'}</button>
-            );
-          })}
-        </div>
+      {/* _client_formButtons — 일반 view/modify 는 위 액션행(renderFormButtons)에 합류.
+          액션행이 숨겨진 모드(hideActions 등)에서만 단독 표시. */}
+      {!showEditActions && !showViewActions && formButtons && formButtons.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 flex-shrink-0">{renderFormButtons()}</div>
       )}
 
       {/* SQL 상세 모달 */}
@@ -2019,15 +2021,15 @@ function CodeEditor({ alias, val, readOnly, onChange }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* 툴바 */}
-      {!readOnly && (
+      {/* 툴바 — 조회 모드에서도 '함수 이동'(네비게이션) 가능. 수정 모드는 이동+삽입. */}
+      {(
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-base bg-surface-2 flex-shrink-0">
           <div ref={menuRef} className="relative">
             <button
               type="button"
               className="h-btn-sm px-3 rounded border border-border-base bg-surface text-link text-xs font-semibold cursor-pointer hover:bg-surface-2 transition-colors"
-              onClick={() => { ensurePhpTag(); setMenuOpen(v => !v); }}
-            >+ 함수 삽입</button>
+              onClick={() => { if (!readOnly) ensurePhpTag(); setMenuOpen(v => !v); }}
+            >{readOnly ? '함수 이동' : '+ 함수 이동/삽입'}</button>
             {menuOpen && (
               <div className="absolute left-0 top-full mt-1 z-[100] min-w-[360px] max-h-[400px] overflow-auto rounded border border-border-base bg-surface shadow-md">
                 {HOOK_TEMPLATES.map(g => (
@@ -2040,10 +2042,11 @@ function CodeEditor({ alias, val, readOnly, onChange }) {
                         <div
                           key={item.label}
                           className={[
-                            'px-3 py-2 text-sm cursor-pointer transition-colors border-b border-border-base last:border-b-0 flex items-center gap-2',
-                            exists ? 'bg-accent-dim text-link font-semibold hover:bg-accent/20' : 'text-primary hover:bg-surface-2',
+                            'px-3 py-2 text-sm transition-colors border-b border-border-base last:border-b-0 flex items-center gap-2',
+                            exists ? 'bg-accent-dim text-link font-semibold hover:bg-accent/20 cursor-pointer'
+                                   : (readOnly ? 'text-muted opacity-50 cursor-default' : 'text-primary hover:bg-surface-2 cursor-pointer'),
                           ].join(' ')}
-                          onClick={() => exists ? goToFunc(fn) : insertSnippet(item.fn)}
+                          onClick={() => { if (exists) goToFunc(fn); else if (!readOnly) insertSnippet(item.fn); }}
                         >
                           {exists && <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />}
                           <span className="flex-1">{item.label}</span>
@@ -2056,7 +2059,7 @@ function CodeEditor({ alias, val, readOnly, onChange }) {
               </div>
             )}
           </div>
-          <span className="text-muted text-[10px]">저장 시 programs/ 파일에 자동 반영됩니다</span>
+          <span className="text-muted text-[10px]">{readOnly ? '함수명을 클릭하면 해당 위치로 이동합니다' : '저장 시 programs/ 파일에 자동 반영됩니다'}</span>
         </div>
       )}
       {/* Monaco 에디터 */}

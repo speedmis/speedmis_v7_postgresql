@@ -372,6 +372,79 @@ function buildDefaultOrderby(fields) {
     .join(',');
 }
 
+/* ── 체크박스(c) 툴바 필터 ────────────────────────────────────────────────
+ * grid_is_handle='c' 인 필드는 상단 툴바에 '체크박스' 로 렌더된다.
+ *   라벨         = col_title
+ *   거르는 컬럼  = db_table.db_field  (fieldMap 으로 alias→컬럼 해석)
+ *   items        = "연산자:값"  — 체크됐을 때 적용할 조건. 값엔 날짜매크로 사용 가능
+ *                   예) "gte:@today-7d"  → 컬럼 >= (오늘-7일)
+ *   default_value= '1'|'Y'|'true'|'on' → 처음 진입 시 '체크' 된 상태로 시작
+ * 날짜매크로: @today, @today-7d(7일전), @today+3d, @today-1w(1주), @today-1m(1개월)
+ *   누구나 mis_menu_fields 한 줄(핸들여부='c' + items + default_value) 로 체크박스 필터 추가 가능.
+ */
+function resolveFilterMacro(v) {
+  const s = String(v ?? '').trim();
+  const m = s.match(/^@today(?:([+-]\d+)\s*([dwm])?)?$/i);
+  if (!m) return s;                                  // 매크로 아님 → 원문 그대로
+  const n    = m[1] ? parseInt(m[1], 10) : 0;
+  const unit = (m[2] || 'd').toLowerCase();
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (unit === 'w')      d.setDate(d.getDate() + n * 7);
+  else if (unit === 'm') d.setMonth(d.getMonth() + n);
+  else                   d.setDate(d.getDate() + n);
+  const p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** items "연산자:값" → {operator, value(매크로 해석됨)} | null */
+function parseCheckboxSpec(items) {
+  const s  = String(items ?? '').trim();
+  const ci = s.indexOf(':');
+  if (ci < 0) return null;
+  const operator = s.slice(0, ci).trim();
+  if (!operator) return null;
+  return { operator, value: resolveFilterMacro(s.slice(ci + 1)) };
+}
+
+/** 체크박스 필터값이 '켜짐' 인지 (URL 복원 시 값이 날짜문자열로 들어와도 truthy 면 켜짐으로 간주) */
+function isCheckboxOn(v) {
+  return v !== undefined && v !== null && v !== false && v !== '' && v !== '0' && v !== 'N';
+}
+
+/** default_value 가 '기본 체크' 를 의미하는지 */
+function isCheckboxDefaultOn(dv) {
+  const s = String(dv ?? '').trim().toLowerCase();
+  return s === '1' || s === 'y' || s === 'true' || s === 'on' || s === 'checked';
+}
+
+/** 처음 진입(URL allFilter 없음) 시 적용할 체크박스 default 필터 배열 (toolbar_ 접두어 포함) */
+function buildCheckboxDefaultFilters(fields, urlAfStr) {
+  const hasUrlAf = urlAfStr && urlAfStr.trim() !== '' && urlAfStr.trim() !== '[]';
+  if (hasUrlAf) return [];                           // URL 상태가 있으면 그대로 존중 (재정의 안 함)
+  const out = [];
+  (fields ?? []).forEach(f => {
+    if ((f.grid_is_handle ?? '') !== 'c') return;
+    if (!isCheckboxDefaultOn(f.default_value)) return;
+    const spec = parseCheckboxSpec(f.items);
+    if (spec) out.push({ field: `toolbar_${f.alias_name ?? ''}`, operator: spec.operator, value: spec.value });
+  });
+  return out;
+}
+
+/** 목록 IDX(링크) 셀의 댓글갯수 뱃지 — 아주 작은 글씨 + 노란 배경 (사용자 요청 색상).
+ *  셀(td.relative) 우하단에 absolute 로 띄워 컬럼 폭이 좁아도 숫자가 보이게 함.
+ *  (td 가 containing block 이라 중간 truncate(overflow-hidden) 에 안 잘림.) pointer-events:none 으로 클릭 통과. */
+function CommentCountBadge({ n }) {
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded-sm font-bold leading-none"
+      style={{ backgroundColor: '#FFE600', color: '#1A1D27', fontSize: '9px', padding: '1px 3px', minWidth: '12px',
+               position: 'absolute', right: '2px', bottom: '2px', pointerEvents: 'none' }}
+      title={`댓글 ${n}개`}
+    >{n}</span>
+  );
+}
+
 /** filterValues → allFilter JSON */
 function buildAllFilter(filterValues, filterFields) {
   const filters = [];
@@ -387,6 +460,11 @@ function buildAllFilter(filterValues, filterFields) {
       const from = val?.from ?? '';
       const to   = val?.to   ?? '';
       if (from || to) filters.push({ field: alias, operator: 'between', value: [from, to] });
+    } else if (handle === 'c') {
+      if (isCheckboxOn(val)) {
+        const spec = parseCheckboxSpec(f.items);
+        if (spec) filters.push({ field: alias, operator: spec.operator, value: spec.value });
+      }
     }
   });
   return JSON.stringify(filters);
@@ -446,7 +524,7 @@ function mergeExternalAndUiFilters(urlAfStr, filterValues, allFields) {
     const alias = raw.startsWith('toolbar_') ? raw.slice(8) : raw;
     return !uiAliases.has(alias);
   });
-  const uiAfJson = buildAllFilter(filterValues, allFields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? '')));
+  const uiAfJson = buildAllFilter(filterValues, allFields.filter(f => ['s','t','w','c'].includes(f.grid_is_handle ?? '')));
   let uiFilters = [];
   try { uiFilters = JSON.parse(uiAfJson || '[]'); } catch {}
   return JSON.stringify([...external, ...uiFilters]);
@@ -1102,7 +1180,7 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
   // 인라인 편집 저장 후 재조회용 ref
   const loadRef = useRef(null);
   loadRef.current = () => {
-    const af = buildAllFilter(filterValues, fields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? '')));
+    const af = buildAllFilter(filterValues, fields.filter(f => ['s','t','w','c'].includes(f.grid_is_handle ?? '')));
     load(page, orderby, af, recently);
   };
 
@@ -1241,6 +1319,23 @@ const DataGrid = forwardRef(function DataGrid({ gubun, user, menu, onToggleView,
     const urlOb = normalizeOrderby(urlParams.current.get('orderby') ?? '');
     load(1, urlOb, toolbarOnlyAf(urlAF), recently);
   }, [gubun]);
+
+  // 체크박스(c) default_value '기본 체크' 적용 — fields 가 로드된 뒤 1회.
+  //   fields 는 첫 load 응답으로 들어오므로(=최초 load 시점엔 알 수 없음) 별도 effect 로 처리.
+  //   URL allFilter 가 없을 때만, 기본'체크' 인 체크박스 필터를 켜고 재조회.
+  const cbDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (cbDefaultApplied.current) return;
+    if (!fields || fields.length === 0) return;          // fields 로드 대기
+    cbDefaultApplied.current = true;
+    const urlAF = urlParams.current.get('allFilter') ?? '[]';
+    const seeds = buildCheckboxDefaultFilters(fields, urlAF);
+    if (!seeds.length) return;                            // 기본체크 체크박스 없음 → 그대로
+    const seeded = { ...filterValues };
+    seeds.forEach(s => { seeded[s.field.replace(/^toolbar_/, '')] = true; });
+    setFilterValues(seeded);                              // 체크 상태 UI 반영
+    load(1, orderby, mergeExternalAndUiFilters(urlAF, seeded, fields), recently);
+  }, [fields]);
 
   // parentIdx prop 변경 시 재조회 (초기 마운트 제외)
   const prevParentIdxProp = useRef(parentIdxProp);
@@ -2193,7 +2288,7 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
   })();
   const filterFields = _isPopupMode
     ? []
-    : fields.filter(f => ['s','t','w'].includes(f.grid_is_handle ?? ''));
+    : fields.filter(f => ['s','t','w','c'].includes(f.grid_is_handle ?? ''));
 
   // ※ 동일 필터로 blur 재검색 시 list 재렌더가 발생해 첫 클릭이 사라지는 문제
   //   (필터 후 idx 2번 클릭 필요) 방지 — toolbar 필터 + 컬럼 헤더 필터 통합 시그니처로 비교
@@ -2327,6 +2422,11 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
       } else if (handle === 'w') {
         const from = val?.from ?? '', to = val?.to ?? '';
         if (from || to) filters.push({ field: `toolbar_${alias}`, operator: 'between', value: [from, to] });
+      } else if (handle === 'c') {
+        if (isCheckboxOn(val)) {
+          const spec = parseCheckboxSpec(f.items);
+          if (spec) filters.push({ field: `toolbar_${alias}`, operator: spec.operator, value: spec.value });
+        }
       }
     });
     return JSON.stringify(filters);
@@ -2532,6 +2632,27 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
               const ci = s.indexOf(',');
               return ci === -1 ? s : s.slice(ci + 1) || s.slice(0, ci) || alias;
             })();
+
+            if (handle === 'c') {
+              // 체크박스 필터 — 체크 시 items("연산자:값") 조건 적용, 해제 시 조건 제거.
+              const on = isCheckboxOn(filterValues[alias]);
+              const toggle = (next) => {
+                handleFilterChange(alias, next);
+                const newVals = { ...filterValues, [alias]: next };
+                load(1, orderby, buildAllFilter(newVals, filterFields), recently);
+              };
+              return (
+                <label key={alias} className="flex items-center gap-1 flex-shrink-0 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="cursor-pointer accent-accent w-3.5 h-3.5"
+                    checked={on}
+                    onChange={e => toggle(e.target.checked)}
+                  />
+                  <span className="text-xs text-secondary whitespace-nowrap">{label}</span>
+                </label>
+              );
+            }
 
             if (handle === 's') {
               // 상단 필터는 실제 데이터 distinct 값 우선 (items 는 입력/수정용 선택목록이라 필터와 무관)
@@ -3179,7 +3300,8 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                             />
                           : html
                           ? (isLink && !effOnlyList
-                              ? <span className="text-link cell-html cursor-pointer underline underline-offset-2 hover:text-accent-hover"
+                              ? <span className="inline-flex items-center gap-1">
+                                  <span className="text-link cell-html cursor-pointer underline underline-offset-2 hover:text-accent-hover"
                                       dangerouslySetInnerHTML={{ __html: html }}
                                       onClick={e => {
                                         // data-opentab 버튼 클릭은 App.jsx capture 핸들러가 stopImmediatePropagation 처리하므로 여기까지 안 옴
@@ -3196,6 +3318,8 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                                           onToggleView(rowPk, rowLinkVal);
                                         }
                                       }} />
+                                  {row.__commentCount > 0 && <CommentCountBadge n={row.__commentCount} />}
+                                </span>
                               : <span className="text-primary cell-html" dangerouslySetInnerHTML={{ __html: html }} />)
                           : isLink && !effOnlyList
                           ? (() => {
@@ -3207,7 +3331,8 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                                         : (f.schema_type === 'datetime' && String(val).length >= 10 ? String(val).slice(0,16) : val)))
                                 : '-';
                               return (
-                                <span className="text-link cursor-pointer underline underline-offset-2 hover:text-accent-hover"
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-link cursor-pointer underline underline-offset-2 hover:text-accent-hover"
                                       onClick={e => {
                                         if (e.shiftKey) {
                                           e.preventDefault();
@@ -3222,6 +3347,8 @@ tr.agg-row td{background:#f6f7fb;font-weight:bold}
                                           onToggleView(rowPk, rowLinkVal);
                                         }
                                       }}>{display}</span>
+                                  {row.__commentCount > 0 && <CommentCountBadge n={row.__commentCount} />}
+                                </span>
                               );
                             })()
                           : (isCheckEdit || f.grid_ctl_name === 'check' || f.grid_ctl_name === 'checkbox')

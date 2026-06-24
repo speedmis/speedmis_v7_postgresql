@@ -150,6 +150,13 @@ export const api = {
   logout:  ()           => request('logout', { method: 'POST', body: {} }),
   me:      ()           => request('me'),
 
+  // 댓글 (mis_comments)
+  commentList:   (realPid, midx)                       => request('commentList',   { params: { real_pid: realPid, midx } }),
+  commentWrite:  (realPid, midx, contents, refidx = 0) => request('commentWrite',  { body: { real_pid: realPid, midx, contents, refidx } }),
+  commentDelete: (idx)                                 => request('commentDelete', { body: { idx } }),
+  commentUpdate: (idx, contents)                       => request('commentUpdate', { body: { idx, contents } }),
+  commentLike:   (commentsIdx, LH)                     => request('commentLike',   { body: { commentsIdx, LH } }),
+
   // 메뉴
   menu:              ()         => request('menu'),
   menuItem:          (gubun)    => request('menuItem', { params: { gubun } }),

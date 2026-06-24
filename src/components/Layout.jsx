@@ -498,7 +498,7 @@ export default function Layout({ user, menuTree, onLogout, siteTitle, homeGubun 
             className="hidden sm:inline-block text-lg font-bold text-nav-logo whitespace-nowrap pr-3 mr-1 border-r border-nav-border bg-transparent border-l-0 border-t-0 border-b-0 cursor-pointer hover:opacity-80 transition-opacity"
             style={{ fontFamily: 'inherit' }}
             onClick={() => {
-              dispatch({ type: 'CLOSE_ALL' });
+              // 홈으로 이동만 — 열린 프로그램 탭은 유지(CLOSE_ALL 제거).
               if (homeGubun) {
                 selectGubun(homeGubun);
               } else {
@@ -1113,8 +1113,8 @@ function SettingsButton({ user, toggleMode, onLogout }) {
 
 /* ── 제품정보 팝업 ── */
 // core(공유 번들/엔진)가 추가·변경될 때마다 버전을 미세 상향 + 갱신일 갱신 (사용자 지시 2026-06-22)
-const APP_VERSION = '7.0.1';
-const APP_VERSION_DATE = '2026-06-22';
+const APP_VERSION = '7.0.2';
+const APP_VERSION_DATE = '2026-06-24';
 function AboutModal({ onClose }) {
   // 홈페이지는 모든 사이트가 https://v7.speedmis.com/ 로 통일 (정식 홈페이지)
   const homepage = 'https://v7.speedmis.com/';
